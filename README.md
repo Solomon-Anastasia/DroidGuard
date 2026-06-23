@@ -1,2 +1,1 @@
 # YaraDroid
-# YaraDroid
