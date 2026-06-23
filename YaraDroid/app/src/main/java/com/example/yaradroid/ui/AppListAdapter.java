@@ -1,4 +1,65 @@
 package com.example.yaradroid.ui;
 
-public class AppListAdapter {
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.yaradroid.R;
+import com.example.yaradroid.models.InstalledApp;
+
+import java.util.List;
+
+public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewHolder> {
+    private final List<InstalledApp> appList;
+    private final OnAppClickListener listener;
+
+    public interface OnAppClickListener {
+        void onAppClick(InstalledApp app);
+    }
+
+    public AppListAdapter(List<InstalledApp> appList, OnAppClickListener listener) {
+        this.appList = appList;
+        this.listener = listener;
+    }
+
+    @NonNull
+    @Override
+    public AppViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_installed_app, parent, false);
+        return new AppViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull AppViewHolder holder, int position) {
+        InstalledApp app = appList.get(position);
+        holder.appNameText.setText(app.getAppName());
+        holder.packageNameText.setText(app.getPackageName());
+        holder.appIcon.setImageDrawable(app.getIcon());
+
+        holder.itemView.setOnClickListener(v -> listener.onAppClick(app));
+    }
+
+    @Override
+    public int getItemCount() {
+        return appList.size();
+    }
+
+    public static class AppViewHolder extends RecyclerView.ViewHolder {
+        ImageView appIcon;
+        TextView appNameText;
+        TextView packageNameText;
+
+        public AppViewHolder(@NonNull View itemView) {
+            super(itemView);
+            // Assuming these IDs exist in res/layout/item_installed_app.xml
+            appIcon = itemView.findViewById(R.id.appIcon);
+            appNameText = itemView.findViewById(R.id.appNameText);
+            packageNameText = itemView.findViewById(R.id.packageNameText);
+        }
+    }
 }

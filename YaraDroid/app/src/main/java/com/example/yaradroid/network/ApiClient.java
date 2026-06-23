@@ -1,4 +1,140 @@
 package com.example.yaradroid.network;
 
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class ApiClient {
+    private static final String TAG = "ApiClient";
+    private static final String BASE_URL = "http://localhost:8080/api";
+    private static final int TIMEOUT_MS = 15000; // 15 seconds connection/read timeout
+
+    // GET /api/check?hash={sha256}
+    public String checkHash(String sha256) throws Exception {
+        URL url = new URL(BASE_URL + "/check?hash=" + sha256);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(TIMEOUT_MS);
+        conn.setReadTimeout(TIMEOUT_MS);
+
+        int responseCode = conn.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            return readStream(conn.getInputStream());
+        } else {
+            throw new Exception("Server returned HTTP " + responseCode + ": " + readStream(conn.getErrorStream()));
+        }
+    }
+
+    // POST /api/analyze
+    public String uploadApk(String apkPath) throws Exception {
+        File apkFile = new File(apkPath);
+
+        if (!apkFile.exists()) {
+            throw new Exception("APK file not found at path: " + apkPath);
+        }
+
+        String boundary = "===" + System.currentTimeMillis() + "===";
+        String lineEnd = "\r\n";
+        String twoHyphens = "--";
+
+        HttpURLConnection conn = getHttpURLConnection(boundary);
+
+        try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
+             FileInputStream fis = new FileInputStream(apkFile)) {
+
+            // Write the multipart header for the file
+            dos.writeBytes(twoHyphens + boundary + lineEnd);
+            dos.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + apkFile.getName() + "\"" + lineEnd);
+            dos.writeBytes("Content-Type: application/vnd.android.package-archive" + lineEnd);
+            dos.writeBytes(lineEnd);
+
+            // Stream the file in chunks to avoid OutOfMemory errors on large APKs
+            int bytesRead;
+            int bufferSize = 8192; // 8KB buffer
+            byte[] buffer = new byte[bufferSize];
+
+            Log.d(TAG, "Starting APK upload chunking...");
+            while ((bytesRead = fis.read(buffer, 0, bufferSize)) > 0) {
+                dos.write(buffer, 0, bytesRead);
+            }
+
+            // Close the multipart request
+            dos.writeBytes(lineEnd);
+            dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+            dos.flush();
+        }
+
+        // Read the response
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
+            return readStream(conn.getInputStream());
+        } else {
+            throw new Exception("Upload failed with HTTP " + responseCode + ": " + readStream(conn.getErrorStream()));
+        }
+    }
+
+    // GET /api/status/{jobId}
+    public String pollStatus(String jobId) throws Exception {
+        URL url = new URL(BASE_URL + "/status/" + jobId);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(TIMEOUT_MS);
+        conn.setReadTimeout(TIMEOUT_MS);
+
+        int responseCode = conn.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            return readStream(conn.getInputStream());
+        } else {
+            throw new Exception("Status poll failed with HTTP " + responseCode + ": " + readStream(conn.getErrorStream()));
+        }
+    }
+
+    @NonNull
+    private static HttpURLConnection getHttpURLConnection(String boundary) throws IOException {
+        URL url = new URL(BASE_URL + "/analyze");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setConnectTimeout(TIMEOUT_MS);
+
+        // Allow longer read timeout for the upload process
+        conn.setReadTimeout(60000);
+        conn.setDoInput(true);
+        conn.setDoOutput(true);
+        conn.setUseCaches(false);
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Connection", "Keep-Alive");
+        conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+        return conn;
+    }
+
+    // Convert InputStream to String
+    private String readStream(InputStream is) throws Exception {
+        if (is == null) return "";
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        StringBuilder sb = new StringBuilder();
+        String line;
+
+        while ((line = reader.readLine()) != null) {
+            sb.append(line).append('\n');
+        }
+
+        reader.close();
+        return sb.toString().trim();
+    }
 }
