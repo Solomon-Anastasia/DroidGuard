@@ -1,1 +1,1 @@
-# YaraDroid
+# DroidGuard System
