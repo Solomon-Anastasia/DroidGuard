@@ -1,4 +1,4 @@
-package com.example.yaradroid.models;
+package com.security.droidguard.models;
 
 public class JobStatus {
     private String jobId;

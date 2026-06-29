@@ -1,11 +1,11 @@
-package com.example.yaradroid.extractor;
+package com.security.droidguard.extractor;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 
-import com.example.yaradroid.models.InstalledApp;
+import com.security.droidguard.models.InstalledApp;
 
 import java.util.ArrayList;
 import java.util.List;

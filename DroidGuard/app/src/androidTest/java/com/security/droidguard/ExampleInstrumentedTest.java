@@ -1,4 +1,4 @@
-package com.example.yaradroid;
+package com.security.droidguard;
 
 import android.content.Context;
 

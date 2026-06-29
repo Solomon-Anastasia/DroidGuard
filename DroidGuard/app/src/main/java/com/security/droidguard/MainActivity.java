@@ -1,4 +1,4 @@
-package com.example.yaradroid;
+package com.security.droidguard;
 
 import android.os.Bundle;
 import android.widget.Toast;
@@ -11,10 +11,10 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.yaradroid.extractor.ApkExtractor;
-import com.example.yaradroid.models.InstalledApp;
-import com.example.yaradroid.network.AnalysisProxy;
-import com.example.yaradroid.ui.AppListAdapter;
+import com.security.droidguard.extractor.ApkExtractor;
+import com.security.droidguard.models.InstalledApp;
+import com.security.droidguard.network.AnalysisProxy;
+import com.security.droidguard.ui.AppListAdapter;
 
 import java.util.List;
 

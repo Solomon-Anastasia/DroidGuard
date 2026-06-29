@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.example.yaradroid'
+    namespace 'com.security.droidguard'
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.yaradroid"
+        applicationId "com.security.droidguard"
         minSdk 26
         targetSdk 36
         versionCode 1

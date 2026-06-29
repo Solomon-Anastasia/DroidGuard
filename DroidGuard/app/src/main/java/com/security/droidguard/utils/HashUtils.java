@@ -1,4 +1,4 @@
-package com.example.yaradroid.utils;
+package com.security.droidguard.utils;
 
 import java.io.FileInputStream;
 import java.io.InputStream;

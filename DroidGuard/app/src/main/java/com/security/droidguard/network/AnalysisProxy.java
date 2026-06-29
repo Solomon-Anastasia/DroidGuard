@@ -1,10 +1,10 @@
-package com.example.yaradroid.network;
+package com.security.droidguard.network;
 
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import com.example.yaradroid.utils.HashUtils;
+import com.security.droidguard.utils.HashUtils;
 
 import org.json.JSONObject;
 

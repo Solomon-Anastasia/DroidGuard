@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "YaraDroid"
+rootProject.name = "DroidGuard"
 include ':app'

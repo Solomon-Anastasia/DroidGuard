@@ -1,4 +1,4 @@
-package com.example.yaradroid.models;
+package com.security.droidguard.models;
 
 import android.graphics.drawable.Drawable;
 
