@@ -3,7 +3,7 @@ package com.security.droidguard.models;
 public class JobStatus {
     private String jobId;
     private String status; // PENDING, COMPLETED, FAILED
-    private String yaraReport; // JSON string
+    private String yaraReport;
 
     public JobStatus(String jobId, String status, String yaraReport) {
         this.jobId = jobId;

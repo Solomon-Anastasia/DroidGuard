@@ -1,8 +1,11 @@
 package com.security.droidguard.network;
 
+import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+
+import com.security.droidguard.BuildConfig;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -13,10 +16,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class ApiClient {
     private static final String TAG = "ApiClient";
-    private static final String BASE_URL = "http://localhost:8080/api";
+    private static final String BASE_URL = BuildConfig.BASE_URL;
     private static final int TIMEOUT_MS = 15000; // 15 seconds connection/read timeout
 
     // GET /api/check?hash={sha256}
@@ -38,7 +43,7 @@ public class ApiClient {
     }
 
     // POST /api/analyze
-    public String uploadApk(String apkPath) throws Exception {
+    public String uploadApk(String apkPath, String hash, String appName) throws Exception {
         File apkFile = new File(apkPath);
 
         if (!apkFile.exists()) {
@@ -49,7 +54,13 @@ public class ApiClient {
         String lineEnd = "\r\n";
         String twoHyphens = "--";
 
-        HttpURLConnection conn = getHttpURLConnection(boundary);
+        String encodedAppName = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            encodedAppName = URLEncoder.encode(appName, StandardCharsets.UTF_8);
+        }
+
+        String urlString = BASE_URL + "/analyze?hash=" + hash + "&appName=" + encodedAppName;
+        HttpURLConnection conn = getHttpURLConnection(urlString, boundary);
 
         try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
              FileInputStream fis = new FileInputStream(apkFile)) {
@@ -104,17 +115,19 @@ public class ApiClient {
     }
 
     @NonNull
-    private static HttpURLConnection getHttpURLConnection(String boundary) throws IOException {
-        URL url = new URL(BASE_URL + "/analyze");
+    private static HttpURLConnection getHttpURLConnection(String urlString, String boundary) throws IOException {
+        URL url = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         conn.setConnectTimeout(TIMEOUT_MS);
-
-        // Allow longer read timeout for the upload process
         conn.setReadTimeout(60000);
         conn.setDoInput(true);
         conn.setDoOutput(true);
         conn.setUseCaches(false);
+
+        // CRITICAL: Tells Android to stream the file instead of loading it all into RAM
+        conn.setChunkedStreamingMode(8192);
+
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Connection", "Keep-Alive");
         conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);

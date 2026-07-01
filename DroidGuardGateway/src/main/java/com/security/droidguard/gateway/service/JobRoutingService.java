@@ -5,7 +5,6 @@ import com.security.droidguard.gateway.model.entity.AnalysisJob;
 import com.security.droidguard.gateway.repository.AnalysisJobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -15,8 +14,8 @@ import java.util.Optional;
 public class JobRoutingService {
 
     private final AnalysisJobRepository jobRepository;
-    private final StorageService storageService; // Injected
-    private final QueueProducer queueProducer;   // Injected
+    private final StorageService storageService;
+    private final QueueProducer queueProducer;
 
     @Autowired
     public JobRoutingService(AnalysisJobRepository jobRepository,
@@ -27,7 +26,6 @@ public class JobRoutingService {
         this.queueProducer = queueProducer;
     }
 
-    @Transactional
     public Long createAndRouteJob(MultipartFile file, String sha256, String appName) throws IOException {
         String path = storageService.saveFile(file, sha256 + ".apk");
 

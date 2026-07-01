@@ -10,6 +10,10 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId "com.security.droidguard"
         minSdk 26
@@ -21,12 +25,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField "String", "BASE_URL", "\"http://10.203.246.254:8080/api\""
+        }
         release {
+            buildConfigField "String", "BASE_URL", "\"https://api.droidguard.io/api\""
             optimization {
-                enable false
+                enable true
             }
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11

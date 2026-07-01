@@ -15,9 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 @RestController
@@ -47,14 +44,14 @@ public class AnalysisController {
             if ("COMPLETED".equals(job.getStatus())) {
                 return ResponseEntity.ok(new HashCheckResponse(
                         "CACHED",
-                        job.getYaraReport(),
-                        null // jobId is not needed if it's already completed
+                        null,
+                        job.getYaraReport()
                 ));
             } else {
                 return ResponseEntity.ok(new HashCheckResponse(
                         "PENDING",
-                        null,
-                        String.valueOf(job.getJobId())
+                        String.valueOf(job.getJobId()),
+                        null
                 ));
             }
         }
@@ -64,37 +61,21 @@ public class AnalysisController {
 
     @PostMapping("/analyze")
     public ResponseEntity<UploadResponse> uploadApk(@RequestParam("file") MultipartFile file,
-                                                    @RequestParam("hash") String sha256) {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (sha256 == null || sha256.isBlank()) {
+                                                    @RequestParam("hash") String sha256,
+                                                    @RequestParam("appName") String appName) {
+        if (file.isEmpty() || sha256 == null || sha256.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
         try {
-            String originalFilename = file.getOriginalFilename();
-            String appName = originalFilename != null ? originalFilename : "UnknownApp";
-
-            String finalFilename = sha256 + ".apk";
-            Path targetLocation = Paths.get(storageProperties.getUploadDir())
-                    .toAbsolutePath().normalize().resolve(finalFilename);
-
-            if (!Files.exists(targetLocation)) {
-                Files.copy(file.getInputStream(), targetLocation);
-                logger.info("Successfully saved NEW APK as: {}", targetLocation);
-            } else {
-                logger.info("APK with hash {} already exists on disk. Skipping file write.", sha256);
-            }
-
+            // Directly pass the appName received from the mobile client
             Long generatedJobId = jobRoutingService.createAndRouteJob(file, sha256, appName);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new UploadResponse(String.valueOf(generatedJobId), "File accepted and sent for asynchronous analysis."));
 
         } catch (IOException ex) {
-            logger.error("Error saving the APK file to disk.", ex);
+            logger.error("Error processing the APK file.", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -15,12 +15,14 @@ public class ApkExtractor {
         List<InstalledApp> appList = new ArrayList<>();
         PackageManager pm = context.getPackageManager();
 
+        // Dynamically get DroidGuard's own package name
+        String myPackageName = context.getPackageName();
         List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
 
         for (ApplicationInfo appInfo : packages) {
             boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
 
-            if (!isSystemApp) {
+            if (!isSystemApp && !appInfo.packageName.equals(myPackageName)) {
                 String appName = pm.getApplicationLabel(appInfo).toString();
                 String packageName = appInfo.packageName;
                 String apkPath = appInfo.publicSourceDir;

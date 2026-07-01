@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
         adapter = new AppListAdapter(installedApps, app -> {
             Toast.makeText(MainActivity.this, "Scanning: " + app.getAppName(), Toast.LENGTH_SHORT).show();
 
-            analysisProxy.startAnalysis(app.getApkPath(), new AnalysisProxy.AnalysisCallback() {
+            analysisProxy.startAnalysis(app.getApkPath(), app.getAppName(), new AnalysisProxy.AnalysisCallback() {
                 @Override
                 public void onSuccess(String jsonReport) {
                     // For now, just show a Toast
