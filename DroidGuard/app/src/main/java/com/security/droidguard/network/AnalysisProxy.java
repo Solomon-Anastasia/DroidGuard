@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AnalysisProxy {
     private static final String TAG = "AnalysisProxy";
-    private static final int MAX_CONCURRENT_ANALYSES = 3;
+    private static final int MAX_CONCURRENT_ANALYSES = 10;
 
     private final ApiClient apiClient;
     private final Handler mainHandler; // Ensures callbacks run on the UI thread

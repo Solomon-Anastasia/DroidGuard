@@ -48,8 +48,8 @@ public class MainActivity extends AppCompatActivity {
             analysisProxy.startAnalysis(app.getApkPath(), app.getAppName(), new AnalysisProxy.AnalysisCallback() {
                 @Override
                 public void onSuccess(String jsonReport) {
-                    // For now, just show a Toast
                     Toast.makeText(MainActivity.this, "Report Ready!", Toast.LENGTH_LONG).show();
+                    // Later: Pass this jsonReport to a new ResultsActivity or Dialog
                 }
 
                 @Override
@@ -60,5 +60,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         recyclerView.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (analysisProxy != null) {
+            analysisProxy.shutdown();
+        }
     }
 }
