@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "analysis_jobs")
 public class AnalysisJob {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "job_id", updatable = false, nullable = false)
@@ -24,7 +23,7 @@ public class AnalysisJob {
     private String appName;
 
     @Column(name = "status", nullable = false)
-    private String status; // PENDING, COMPLETED, FAILED
+    private String status; // PENDING, COMPLETED, FAILED, INTERRUPTED, DELETED
 
     @Column(name = "yara_report", columnDefinition = "TEXT")
     private String yaraReport;
@@ -36,7 +35,8 @@ public class AnalysisJob {
     private LocalDateTime updatedAt;
 
     // For hibernate
-    public AnalysisJob() {}
+    public AnalysisJob() {
+    }
 
     public AnalysisJob(String sha256, String appName, String status) {
         this.sha256 = sha256;

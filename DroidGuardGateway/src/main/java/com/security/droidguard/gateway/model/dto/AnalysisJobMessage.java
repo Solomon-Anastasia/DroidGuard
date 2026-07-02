@@ -7,4 +7,5 @@ public record AnalysisJobMessage(
         String sha256,
         String storagePath,
         String appName
-) implements Serializable {}
+) implements Serializable {
+}

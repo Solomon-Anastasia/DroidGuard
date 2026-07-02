@@ -12,7 +12,6 @@ import java.util.Optional;
 
 @Service
 public class JobRoutingService {
-
     private final AnalysisJobRepository jobRepository;
     private final StorageService storageService;
     private final QueueProducer queueProducer;

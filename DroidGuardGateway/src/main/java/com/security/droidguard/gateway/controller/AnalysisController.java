@@ -1,6 +1,5 @@
 package com.security.droidguard.gateway.controller;
 
-import com.security.droidguard.gateway.config.StorageProperties;
 import com.security.droidguard.gateway.model.dto.HashCheckResponse;
 import com.security.droidguard.gateway.model.dto.StatusResponse;
 import com.security.droidguard.gateway.model.dto.UploadResponse;
@@ -20,15 +19,11 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api")
 public class AnalysisController {
-
     private static final Logger logger = LoggerFactory.getLogger(AnalysisController.class);
-
-    private final StorageProperties storageProperties;
     private final JobRoutingService jobRoutingService;
 
     @Autowired
-    public AnalysisController(StorageProperties storageProperties, JobRoutingService jobRoutingService) {
-        this.storageProperties = storageProperties;
+    public AnalysisController(JobRoutingService jobRoutingService) {
         this.jobRoutingService = jobRoutingService;
     }
 
@@ -68,11 +63,10 @@ public class AnalysisController {
         }
 
         try {
-            // Directly pass the appName received from the mobile client
             Long generatedJobId = jobRoutingService.createAndRouteJob(file, sha256, appName);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new UploadResponse(String.valueOf(generatedJobId), "File accepted and sent for asynchronous analysis."));
+                    .body(new UploadResponse(String.valueOf(generatedJobId), "File accepted and sent for asynchronous analysis"));
 
         } catch (IOException ex) {
             logger.error("Error processing the APK file.", ex);

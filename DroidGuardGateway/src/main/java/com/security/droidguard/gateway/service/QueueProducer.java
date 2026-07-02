@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class QueueProducer {
-
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${rabbitmq.analysis.exchange}")

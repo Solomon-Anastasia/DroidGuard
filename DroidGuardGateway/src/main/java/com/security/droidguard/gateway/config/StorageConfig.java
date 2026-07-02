@@ -13,7 +13,6 @@ import java.nio.file.Paths;
 
 @Configuration
 public class StorageConfig {
-
     private static final Logger logger = LoggerFactory.getLogger(StorageConfig.class);
     private final StorageProperties storageProperties;
 
@@ -35,7 +34,7 @@ public class StorageConfig {
             }
             return true;
         } catch (IOException ex) {
-            logger.error("Could not create the directory where the uploaded files will be stored.", ex);
+            logger.error("Could not create the directory where the uploaded files will be stored", ex);
             throw new RuntimeException("Could not initialize storage directory", ex);
         }
     }

@@ -6,4 +6,5 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public record StatusResponse(
         String status,
         String yaraReport
-) {}
+) {
+}
