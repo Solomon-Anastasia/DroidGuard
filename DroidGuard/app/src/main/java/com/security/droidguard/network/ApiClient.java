@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class ApiClient {
     private static final String TAG = "ApiClient";
     private static final String BASE_URL = BuildConfig.BASE_URL;
-    private static final int TIMEOUT_MS = 15000; // 15 seconds connection/read timeout
+    private static final int TIMEOUT_MS = 15_000; // 15 s
 
     // GET /api/check?hash={sha256}
     public String checkHash(String sha256) throws Exception {
@@ -54,9 +54,11 @@ public class ApiClient {
         String lineEnd = "\r\n";
         String twoHyphens = "--";
 
-        String encodedAppName = null;
+        String encodedAppName;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             encodedAppName = URLEncoder.encode(appName, StandardCharsets.UTF_8);
+        } else {
+            encodedAppName = URLEncoder.encode(appName, "UTF-8");
         }
 
         String urlString = BASE_URL + "/analyze?hash=" + hash + "&appName=" + encodedAppName;
@@ -65,15 +67,13 @@ public class ApiClient {
         try (DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
              FileInputStream fis = new FileInputStream(apkFile)) {
 
-            // Write the multipart header for the file
             dos.writeBytes(twoHyphens + boundary + lineEnd);
             dos.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + apkFile.getName() + "\"" + lineEnd);
             dos.writeBytes("Content-Type: application/vnd.android.package-archive" + lineEnd);
             dos.writeBytes(lineEnd);
 
-            // Stream the file in chunks to avoid OutOfMemory errors on large APKs
             int bytesRead;
-            int bufferSize = 8192; // 8KB buffer
+            int bufferSize = 8_192; // 8KB buffer
             byte[] buffer = new byte[bufferSize];
 
             Log.d(TAG, "Starting APK upload chunking...");
@@ -81,13 +81,11 @@ public class ApiClient {
                 dos.write(buffer, 0, bytesRead);
             }
 
-            // Close the multipart request
             dos.writeBytes(lineEnd);
             dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
             dos.flush();
         }
 
-        // Read the response
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
             return readStream(conn.getInputStream());
@@ -120,13 +118,13 @@ public class ApiClient {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         conn.setConnectTimeout(TIMEOUT_MS);
-        conn.setReadTimeout(60000);
+        conn.setReadTimeout(60_000);
         conn.setDoInput(true);
         conn.setDoOutput(true);
         conn.setUseCaches(false);
 
-        // CRITICAL: Tells Android to stream the file instead of loading it all into RAM
-        conn.setChunkedStreamingMode(8192);
+        // Tells Android to stream the file instead of loading it all into RAM
+        conn.setChunkedStreamingMode(8_192);
 
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Connection", "Keep-Alive");
@@ -135,7 +133,7 @@ public class ApiClient {
         return conn;
     }
 
-    // Convert InputStream to String
+    // InputStream to String
     private String readStream(InputStream is) throws Exception {
         if (is == null) return "";
 

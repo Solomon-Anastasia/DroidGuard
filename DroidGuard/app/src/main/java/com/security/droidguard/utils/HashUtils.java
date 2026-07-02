@@ -8,7 +8,7 @@ public class HashUtils {
     public static String calculateSHA256(String filePath) {
         try (InputStream fis = new FileInputStream(filePath)) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[8_192];
             int bytesRead;
 
             while ((bytesRead = fis.read(buffer)) != -1) {

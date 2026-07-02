@@ -17,7 +17,7 @@ public class AnalysisProxy {
     private static final int MAX_CONCURRENT_ANALYSES = 10;
 
     private final ApiClient apiClient;
-    private final Handler mainHandler; // Ensures callbacks run on the UI thread
+    private final Handler mainHandler;
     private final ExecutorService executor;
 
     public AnalysisProxy() {
@@ -60,7 +60,6 @@ public class AnalysisProxy {
                     String jobId = checkJson.getString("jobId");
                     startPolling(jobId, callback, cancelled);
                 } else {
-                    // The Route Phase: entirely new file, proceed with 50MB+ upload
                     Log.d(TAG, "New file detected. Initiating multipart upload...");
 
                     if (cancelled.get()) return;
@@ -111,8 +110,8 @@ public class AnalysisProxy {
                 postError(callback, cancelled, "Analysis worker failed to process the APK!");
                 return;
             } else {
-                // PENDING / PROCESSING
                 attempts++;
+                postProgress(callback, cancelled, "Analyzing... (" + attempts + "/" + maxAttempts + ")");
 
                 if (cancelled.get()) return;
 
@@ -138,6 +137,13 @@ public class AnalysisProxy {
         });
     }
 
+    private void postProgress(AnalysisCallback callback, AtomicBoolean cancelled, String status) {
+        if (cancelled.get()) return;
+        mainHandler.post(() -> {
+            if (!cancelled.get()) callback.onProgress(status);
+        });
+    }
+
     private void postError(AnalysisCallback callback, AtomicBoolean cancelled, String error) {
         if (cancelled.get()) return;
         mainHandler.post(() -> {
@@ -147,27 +153,5 @@ public class AnalysisProxy {
 
     public void shutdown() {
         executor.shutdownNow();
-    }
-
-    public interface AnalysisCallback {
-        void onSuccess(String jsonReport);
-
-        void onError(String error);
-    }
-
-    public static final class AnalysisHandle {
-        private final AtomicBoolean cancelled;
-
-        private AnalysisHandle(AtomicBoolean cancelled) {
-            this.cancelled = cancelled;
-        }
-
-        public void cancel() {
-            cancelled.set(true);
-        }
-
-        public boolean isCancelled() {
-            return cancelled.get();
-        }
     }
 }

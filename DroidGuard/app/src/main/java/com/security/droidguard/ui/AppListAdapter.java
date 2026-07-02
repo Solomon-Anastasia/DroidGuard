@@ -17,10 +17,6 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
     private final List<InstalledApp> appList;
     private final OnAppClickListener listener;
 
-    public interface OnAppClickListener {
-        void onAppClick(InstalledApp app);
-    }
-
     public AppListAdapter(List<InstalledApp> appList, OnAppClickListener listener) {
         this.appList = appList;
         this.listener = listener;
@@ -56,7 +52,7 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
 
         public AppViewHolder(@NonNull View itemView) {
             super(itemView);
-            // Assuming these IDs exist in res/layout/item_installed_app.xml
+
             appIcon = itemView.findViewById(R.id.appIcon);
             appNameText = itemView.findViewById(R.id.appNameText);
             packageNameText = itemView.findViewById(R.id.packageNameText);

@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.security.droidguard.extractor.ApkExtractor;
 import com.security.droidguard.models.InstalledApp;
+import com.security.droidguard.network.AnalysisCallback;
 import com.security.droidguard.network.AnalysisProxy;
 import com.security.droidguard.ui.AppListAdapter;
 
@@ -45,16 +46,21 @@ public class MainActivity extends AppCompatActivity {
         adapter = new AppListAdapter(installedApps, app -> {
             Toast.makeText(MainActivity.this, "Scanning: " + app.getAppName(), Toast.LENGTH_SHORT).show();
 
-            analysisProxy.startAnalysis(app.getApkPath(), app.getAppName(), new AnalysisProxy.AnalysisCallback() {
+            analysisProxy.startAnalysis(app.getApkPath(), app.getAppName(), new AnalysisCallback() {
                 @Override
                 public void onSuccess(String jsonReport) {
                     Toast.makeText(MainActivity.this, "Report Ready!", Toast.LENGTH_LONG).show();
-                    // Later: Pass this jsonReport to a new ResultsActivity or Dialog
+                    // Later: Pass jsonReport to a new Dialog
                 }
 
                 @Override
                 public void onError(String error) {
                     Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onProgress(String status) {
+                    Toast.makeText(MainActivity.this, status, Toast.LENGTH_SHORT).show();
                 }
             });
         });
