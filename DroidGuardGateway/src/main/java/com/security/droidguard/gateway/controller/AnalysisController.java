@@ -3,6 +3,7 @@ package com.security.droidguard.gateway.controller;
 import com.security.droidguard.gateway.model.dto.HashCheckResponse;
 import com.security.droidguard.gateway.model.dto.StatusResponse;
 import com.security.droidguard.gateway.model.dto.UploadResponse;
+import com.security.droidguard.gateway.model.dto.WorkerCallbackRequest;
 import com.security.droidguard.gateway.model.entity.AnalysisJob;
 import com.security.droidguard.gateway.service.JobRoutingService;
 import org.slf4j.Logger;
@@ -88,5 +89,23 @@ public class AnalysisController {
                 job.getStatus(),
                 "COMPLETED".equals(job.getStatus()) ? job.getYaraReport() : null
         ));
+    }
+
+    @PostMapping("/internal/complete")
+    public ResponseEntity<Void> receiveWorkerReport(@RequestBody WorkerCallbackRequest request) {
+        logger.info("Received analysis completion report for Job ID: {}", request.getJobId());
+
+        if (request.getJobId() == null || request.getYaraReport() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            jobRoutingService.updateJobWithReport(request.getJobId(), request.getYaraReport());
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Failed to update job {} with worker report", request.getJobId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

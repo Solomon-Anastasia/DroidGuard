@@ -52,7 +52,9 @@ public class AnalysisProxy {
                 if ("CACHED".equals(state)) {
                     Log.d(TAG, "Existing app! Returning immediate results");
 
-                    String cachedReport = checkJson.getString("yaraReport");
+                    JSONObject reportObj = checkJson.optJSONObject("yaraReport");
+                    String cachedReport = (reportObj != null) ? reportObj.toString() : "{}";
+
                     postSuccess(callback, cancelled, cachedReport);
                 } else if ("PENDING".equals(state)) {
                     Log.d(TAG, "Job already in RabbitMQ. Attaching to existing polling queue");
@@ -100,7 +102,9 @@ public class AnalysisProxy {
             if ("COMPLETED".equalsIgnoreCase(currentStatus)) {
                 completed = true;
 
-                String report = statusJson.getString("yaraReport");
+                JSONObject reportObj = statusJson.optJSONObject("yaraReport");
+                String report = (reportObj != null) ? reportObj.toString() : "{}";
+
                 Log.d(TAG, "Analysis worker finished job.");
 
                 postSuccess(callback, cancelled, report);

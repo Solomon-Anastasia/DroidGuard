@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -42,5 +43,15 @@ public class JobRoutingService {
 
     public Optional<AnalysisJob> findJobById(Long jobId) {
         return jobRepository.findById(jobId);
+    }
+
+    public void updateJobWithReport(Long jobId, Map<String, Object> yaraReport) {
+        AnalysisJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found"));
+
+        job.setStatus("COMPLETED");
+        job.setYaraReport(yaraReport);
+
+        jobRepository.save(job);
     }
 }

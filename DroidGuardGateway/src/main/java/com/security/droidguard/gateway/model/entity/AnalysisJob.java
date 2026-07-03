@@ -3,6 +3,10 @@ package com.security.droidguard.gateway.model.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.Map;
 
 import java.time.LocalDateTime;
 
@@ -25,8 +29,9 @@ public class AnalysisJob {
     @Column(name = "status", nullable = false)
     private String status; // PENDING, COMPLETED, FAILED, INTERRUPTED, DELETED
 
-    @Column(name = "yara_report", columnDefinition = "TEXT")
-    private String yaraReport;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "yara_report", columnDefinition = "jsonb")
+    private Map<String, Object> yaraReport;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
