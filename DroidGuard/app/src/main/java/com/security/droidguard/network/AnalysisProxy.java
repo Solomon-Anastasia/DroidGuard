@@ -81,7 +81,7 @@ public class AnalysisProxy {
 
     private void startPolling(String jobId, AnalysisCallback callback, AtomicBoolean cancelled) throws Exception {
         boolean completed = false;
-        int maxAttempts = 60; // Timeout 5 min
+        int maxAttempts = 5; // Timeout 5 min
         int attempts = 0;
 
         Log.d(TAG, "Started polling API Gateway for JobID: " + jobId);
