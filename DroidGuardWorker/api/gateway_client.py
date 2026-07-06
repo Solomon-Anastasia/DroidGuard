@@ -40,6 +40,4 @@ class GatewayClient:
             logger.error(f"Error sending report to Gateway for job {job_id}: {str(e)}")
             return False
 
-
-# Singleton instance to be imported by the mq/consumer.py
 gateway_client = GatewayClient()

@@ -21,7 +21,7 @@ def process_analysis_job(ch, method, properties, body):
         message = json.loads(body.decode('utf-8'))
         job_id = message.get("jobId")
         sha256 = message.get("sha256")
-        apk_path = message.get("path")
+        apk_path = message.get("storagePath")
         app_name = message.get("appName")
 
         logger.info(f"--- Received Job {job_id} ---")
@@ -57,7 +57,7 @@ def process_analysis_job(ch, method, properties, body):
     except Exception as e:
         logger.error(f"Critical error processing Job {job_id}: {str(e)}")
         logger.error(traceback.format_exc())
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     finally:
         cleanup_temp_dir(job_id)
@@ -77,7 +77,11 @@ def start_consuming():
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
 
-        channel.queue_declare(queue=MQ_QUEUE, durable=True)
+        channel.queue_declare(
+            queue=MQ_QUEUE,
+            durable=True,
+            arguments={'x-max-length': 10_000}
+        )
 
         channel.basic_qos(prefetch_count=1)
 

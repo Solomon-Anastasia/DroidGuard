@@ -13,14 +13,16 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "analysis_jobs")
+@Table(name = "analysis_jobs", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_analysis_jobs_sha256", columnNames = "sha256")
+})
 public class AnalysisJob {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "job_id", updatable = false, nullable = false)
     private Long jobId;
 
-    @Column(name = "sha256", nullable = false, length = 64)
+    @Column(name = "sha256", nullable = false, length = 64, unique = true)
     private String sha256;
 
     @Column(name = "app_name")

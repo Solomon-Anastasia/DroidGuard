@@ -123,7 +123,6 @@ public class ApiClient {
         conn.setDoOutput(true);
         conn.setUseCaches(false);
 
-        // Tells Android to stream the file instead of loading it all into RAM
         conn.setChunkedStreamingMode(8_192);
 
         conn.setRequestMethod("POST");

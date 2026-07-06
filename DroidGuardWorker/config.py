@@ -18,5 +18,4 @@ MQ_QUEUE = os.getenv("MQ_QUEUE", "analysis.jobs.queue")
 MQ_USER = os.getenv("MQ_USER", "guest")
 MQ_PASSWORD = os.getenv("MQ_PASSWORD", "guest")
 
-# Ensure the temp directory exists
 TEMP_EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
