@@ -1,0 +1,7 @@
+{
+  "_comment": "Confidence overrides for individual YARA rule identifiers. Any rule not listed here falls back to 'default'. Use this to downgrade known-noisy rules (documented false positives, generic byte patterns) without editing vendor rule files directly.",
+  "default": "medium",
+  "overrides": {
+    "android_meterpreter": "low"
+  }
+}

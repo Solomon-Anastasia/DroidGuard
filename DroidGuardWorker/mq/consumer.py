@@ -6,6 +6,8 @@ import traceback
 from config import MQ_HOST, MQ_PORT, MQ_QUEUE, MQ_USER, MQ_PASSWORD
 from api import gateway_client
 from analysis import extract_apk, scan_directory, cleanup_temp_dir
+from analysis import manifest_analyzer
+import verdict
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,17 +30,16 @@ def process_analysis_job(ch, method, properties, body):
         logger.info(f"Target APK: {app_name} | Path: {apk_path}")
 
         logger.info(f"Extracting APK for Job {job_id}...")
-        extracted_dir = extract_apk(apk_path, job_id)
+        extracted_dir, parsed_apk = extract_apk(apk_path, job_id)
 
         logger.info(f"Scanning extracted files for Job {job_id}...")
-        report_dict = scan_directory(extracted_dir)
+        yara_report = scan_directory(extracted_dir)
 
-        report_dict = {
-            "status": "clean",
-            "matches": [],
-            "scanned_files": 150,
-            "message": "Mock report: YARA scanner not yet implemented."
-        }
+        logger.info(f"Running Androguard heuristic analysis for Job {job_id}...")
+        heuristic_report = manifest_analyzer.analyze(parsed_apk)
+
+        report_dict = verdict.build_verdict(yara_report, heuristic_report)
+        logger.info(f"Job {job_id} verdict: {report_dict['verdict']} — {report_dict['reason']}")
 
         logger.info(f"Sending results to Gateway for Job {job_id}...")
         success = gateway_client.send_analysis_report(job_id, report_dict)

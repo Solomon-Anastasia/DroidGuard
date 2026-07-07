@@ -112,6 +112,24 @@ public class ApiClient {
         }
     }
 
+    // GET /api/reports/summary
+    public String getReportsSummary() throws Exception {
+        URL url = new URL(BASE_URL + "/reports/summary");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(TIMEOUT_MS);
+        conn.setReadTimeout(TIMEOUT_MS);
+
+        int responseCode = conn.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            return readStream(conn.getInputStream());
+        } else {
+            throw new Exception("Failed to fetch summary. HTTP " + responseCode + ": " + readStream(conn.getErrorStream()));
+        }
+    }
+
     @NonNull
     private static HttpURLConnection getHttpURLConnection(String urlString, String boundary) throws IOException {
         URL url = new URL(urlString);

@@ -1,7 +1,6 @@
 import shutil
 import zipfile
 import logging
-from pathlib import Path
 from androguard.core.bytecodes.apk import APK
 from lxml import etree
 
@@ -10,7 +9,7 @@ from config import TEMP_EXTRACT_DIR
 logger = logging.getLogger(__name__)
 
 
-def extract_apk(apk_path: str, job_id: str) -> Path:
+def extract_apk(apk_path: str, job_id: str):
     job_dir = TEMP_EXTRACT_DIR / str(job_id)
     job_dir.mkdir(parents=True, exist_ok=True)
 
@@ -28,7 +27,7 @@ def extract_apk(apk_path: str, job_id: str) -> Path:
                 f.write(etree.tostring(manifest_xml, pretty_print=True, encoding="utf-8"))
 
         logger.info(f"Successfully extracted APK to {job_dir}")
-        return job_dir
+        return job_dir, parsed_apk
 
     except zipfile.BadZipFile:
         logger.error(f"Job {job_id} failed: File at {apk_path} is not a valid ZIP/APK.")

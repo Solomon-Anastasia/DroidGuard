@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -106,6 +107,27 @@ public class AnalysisController {
         } catch (Exception e) {
             logger.error("Failed to update job {} with worker report", request.getJobId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/reports/summary")
+    public ResponseEntity<Map<String, Integer>> getReportsSummary() {
+        logger.info("Fetching strict database reports summary for dashboard");
+
+        try {
+            int totalCompleted = jobRoutingService.countTotalCompletedJobs();
+            int safeCount = jobRoutingService.countCleanJobs();
+            int suspiciousCount = jobRoutingService.countSuspiciousJobs();
+
+            return ResponseEntity.ok(Map.of(
+                    "totalScanned", totalCompleted,
+                    "safeCount", safeCount,
+                    "suspiciousCount", suspiciousCount
+            ));
+        } catch (Exception e) {
+            logger.error("Failed to fetch reports summary", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("totalScanned", 0, "safeCount", 0, "suspiciousCount", 0));
         }
     }
 }
