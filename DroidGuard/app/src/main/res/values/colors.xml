@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="security_primary">#0D47A1</color>
+    <color name="security_secondary">#00B0FF</color>
+    <color name="security_surface">#FFFFFF</color>
+    <color name="security_container">#E3F2FD</color>
+    <color name="security_on_container">#0D47A1</color>
+    <color name="status_safe">#28A745</color>
+    <color name="status_suspicious">#DC3545</color>
+    <color name="status_completed_bg">#E8F5E9</color>
+    <color name="status_completed_title">#2E7D32</color>
+    <color name="status_completed_subtitle">#455A64</color>
 </resources>

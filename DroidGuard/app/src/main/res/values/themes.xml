@@ -1,9 +1,12 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.YaraDroid" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+<resources>
+    <style name="Base.Theme.DroidGuard" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/security_primary</item>
+        <item name="colorSecondary">@color/security_secondary</item>
+
+        <item name="colorPrimaryContainer">@color/security_container</item>
+        <item name="colorOnPrimaryContainer">@color/security_on_container</item>
+        <item name="colorSurface">@color/security_surface</item>
     </style>
 
-    <style name="Theme.YaraDroid" parent="Base.Theme.YaraDroid" />
+    <style name="Theme.DroidGuard" parent="Base.Theme.DroidGuard" />
 </resources>

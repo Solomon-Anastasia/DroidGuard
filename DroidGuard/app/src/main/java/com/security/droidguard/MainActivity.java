@@ -1,7 +1,7 @@
 package com.security.droidguard;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,18 +11,23 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.security.droidguard.database.AppDatabase;
 import com.security.droidguard.extractor.ApkExtractor;
 import com.security.droidguard.models.InstalledApp;
-import com.security.droidguard.network.AnalysisCallback;
 import com.security.droidguard.network.AnalysisProxy;
-import com.security.droidguard.ui.AppListAdapter;
+import com.security.droidguard.network.ScanManager;
+import com.security.droidguard.ui.adapter.AppListAdapter;
+import com.security.droidguard.ui.activity.ProgressActivity;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private AppListAdapter adapter;
-    private AnalysisProxy analysisProxy;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,49 +35,64 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+        // ... Window insets setup ...
 
-        analysisProxy = new AnalysisProxy();
+        MaterialToolbar toolbar = findViewById(R.id.mainToolbar);
+        setSupportActionBar(toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        List<InstalledApp> installedApps = ApkExtractor.getUserApps(this);
+        // 1. Get ALL installed apps from the system
+        List<InstalledApp> allInstalledApps = ApkExtractor.getUserApps(this);
 
-        adapter = new AppListAdapter(installedApps, app -> {
-            Toast.makeText(MainActivity.this, "Scanning: " + app.getAppName(), Toast.LENGTH_SHORT).show();
+        // 2. Run a background thread to check the database and filter the list
+        Executors.newSingleThreadExecutor().execute(() -> {
 
-            analysisProxy.startAnalysis(app.getApkPath(), app.getAppName(), new AnalysisCallback() {
-                @Override
-                public void onSuccess(String jsonReport) {
-                    Toast.makeText(MainActivity.this, "Report Ready!", Toast.LENGTH_LONG).show();
-                    // Later: Pass jsonReport to a new Dialog
+            // Get the list of apps we have already scanned from Room DB
+            List<String> alreadyScannedApps = AppDatabase.getDatabase(MainActivity.this)
+                    .scanHistoryDao()
+                    .getScannedAppNames();
+
+            // Create a new list for apps that haven't been scanned yet
+            List<InstalledApp> appsToShow = new ArrayList<>();
+
+            for (InstalledApp app : allInstalledApps) {
+                // If the DB does NOT contain this app, add it to the final list
+                if (!alreadyScannedApps.contains(app.getAppName())) {
+                    appsToShow.add(app);
                 }
+            }
 
-                @Override
-                public void onError(String error) {
-                    Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
-                }
+            // 3. Jump back to the Main UI Thread to update the screen
+            runOnUiThread(() -> {
+                // Initialize the adapter using the FILTERED list (appsToShow)
+                adapter = new AppListAdapter(appsToShow, app -> {
 
-                @Override
-                public void onProgress(String status) {
-                    Toast.makeText(MainActivity.this, status, Toast.LENGTH_SHORT).show();
-                }
+                    new MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle("Scan Application?")
+                            .setMessage("Do you want to send " + app.getAppName() + " to the Gateway for malware analysis?")
+                            .setPositiveButton("Start Scan", (dialog, which) -> {
+                                ScanManager.getInstance().startScan(app.getApkPath(), app.getAppName());
+                                Intent intent = new Intent(MainActivity.this, ProgressActivity.class);
+                                startActivity(intent);
+                            })
+                            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                            .show();
+                });
+
+                recyclerView.setAdapter(adapter);
             });
         });
-
-        recyclerView.setAdapter(adapter);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (analysisProxy != null) {
-            analysisProxy.shutdown();
-        }
-    }
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//
+//        if (isFinishing()) {
+//            ScanManager.getInstance().shutdown();
+//        }
+//    }
 }
