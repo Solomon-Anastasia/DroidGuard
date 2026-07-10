@@ -1,7 +1,15 @@
 {
-  "_comment": "Confidence overrides for individual YARA rule identifiers. Any rule not listed here falls back to 'default'. Use this to downgrade known-noisy rules (documented false positives, generic byte patterns) without editing vendor rule files directly.",
+  "_comment": "Confidence overrides for individual YARA rule identifiers. Any rule not listed falls back to 'default'. Use this to downgrade known-noisy rules (documented false positives, generic byte patterns, structural ZIP matchers) WITHOUT editing vendor rule files. A 'low' rule can still fire, but on its own it only reaches 'suspicious', never 'malicious'.",
+  "_how_to_tune": "Run yara_debug.py against a folder of KNOWN-BENIGN apks (Telegram, Flo, F-Droid apps, etc). Every rule that matches a clean app is a false-positive source: add it here as 'low'. Remove any precautionary downgrade below that does NOT fire on your benign set, so real detections keep full weight.",
   "default": "medium",
   "overrides": {
-    "android_meterpreter": "low"
+    "android_meterpreter": "low",
+    "finspy": "low",
+    "Trojan_Dendroid": "low"
+  },
+  "_downgrade_notes": {
+    "android_meterpreter": "condition 'any of ($check*) or any of ($stop*)' with strings like 'eval' and 'META-INF/PK' -> matches almost every APK. Confirmed broad.",
+    "finspy": "single regex on the ZIP central-directory header with '#re > 50' -> a structural 'large archive' matcher, not FinSpy-specific. Precautionary; confirm with yara_debug.py.",
+    "Trojan_Dendroid": "condition '3 of them' over generic .php endpoint paths (/get.php?, /message.php?). Precautionary; confirm with yara_debug.py."
   }
 }

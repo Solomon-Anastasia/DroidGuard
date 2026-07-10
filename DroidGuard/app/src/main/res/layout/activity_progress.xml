@@ -11,7 +11,7 @@
         android:id="@+id/progressToolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:title="Active scans"
+        app:title="Scans"
         app:navigationIcon="?attr/homeAsUpIndicator" />
 
     <TextView
@@ -19,7 +19,7 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"
         android:paddingBottom="16dp"
-        android:text="Monitoring apps currently queued on the Gateway."
+        android:text="Monitoring apps"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="14sp" />
 

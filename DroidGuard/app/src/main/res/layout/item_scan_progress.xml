@@ -61,5 +61,17 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="13sp" />
 
+        <ImageView
+            android:id="@+id/btnCancelScan"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            app:tint="?attr/colorError" />
     </RelativeLayout>
 </com.google.android.material.card.MaterialCardView>

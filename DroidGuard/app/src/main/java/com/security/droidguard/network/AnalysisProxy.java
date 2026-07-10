@@ -28,6 +28,7 @@ public class AnalysisProxy {
 
     public AnalysisHandle startAnalysis(String apkPath, String appName, AnalysisCallback callback) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
+        AnalysisHandle handle = new AnalysisHandle(cancelled);
 
         executor.execute(() -> {
             try {
@@ -60,6 +61,7 @@ public class AnalysisProxy {
                     Log.d(TAG, "Job already in RabbitMQ. Attaching to existing polling queue");
 
                     String jobId = checkJson.getString("jobId");
+                    handle.setJobId(jobId);
                     startPolling(jobId, callback, cancelled);
                 } else {
                     Log.d(TAG, "New file detected. Initiating multipart upload...");
@@ -70,6 +72,8 @@ public class AnalysisProxy {
                     JSONObject uploadJson = new JSONObject(uploadResponseStr);
                     String jobId = uploadJson.getString("jobId");
 
+                    handle.setJobId(jobId);
+
                     startPolling(jobId, callback, cancelled);
                 }
             } catch (Exception e) {
@@ -78,12 +82,12 @@ public class AnalysisProxy {
             }
         });
 
-        return new AnalysisHandle(cancelled);
+        return handle;
     }
 
     private void startPolling(String jobId, AnalysisCallback callback, AtomicBoolean cancelled) throws Exception {
         boolean completed = false;
-        int maxAttempts = 60; // Timeout 5 min
+        int maxAttempts = 60 + 60 + 60 + 60; // Timeout 5 min each
         int attempts = 0;
 
         Log.d(TAG, "Started polling API Gateway for JobID: " + jobId);
@@ -132,6 +136,18 @@ public class AnalysisProxy {
         if (!completed) {
             postError(callback, cancelled, "Polling timed out while waiting for the analysis worker");
         }
+    }
+
+    public void cancelAnalysisOnServer(String jobId) {
+        executor.execute(() -> {
+            try {
+                // You will need to add this mapping to your ApiClient
+                apiClient.cancelJob(jobId);
+                Log.d(TAG, "Sent abort signal to Gateway for JobID: " + jobId);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to send cancel signal to server", e);
+            }
+        });
     }
 
     private void postSuccess(AnalysisCallback callback, AtomicBoolean cancelled, String report) {

@@ -150,6 +150,25 @@ public class ApiClient {
         return conn;
     }
 
+    public void cancelJob(String jobId) throws Exception {
+        // Replace BASE_URL with however you manage your Gateway URL
+        URL url = new URL(BASE_URL + "/cancel/" + jobId);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(10_000);
+        conn.setReadTimeout(10_000);
+
+        // Execute the request
+        int responseCode = conn.getResponseCode();
+
+        if (responseCode != 200) {
+            throw new Exception("Failed to cancel job. Server returned: " + responseCode);
+        }
+
+        conn.disconnect();
+    }
+
     // InputStream to String
     private String readStream(InputStream is) throws Exception {
         if (is == null) return "";

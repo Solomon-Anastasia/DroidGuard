@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
                     new MaterialAlertDialogBuilder(MainActivity.this)
                             .setTitle("Scan Application?")
                             .setMessage("Do you want to send " + app.getAppName() + " to the Gateway for malware analysis?")
-                            .setPositiveButton("Start Scan", (dialog, which) -> {
+                            .setPositiveButton("Start scan", (dialog, which) -> {
                                 ScanManager.getInstance().startScan(app.getApkPath(), app.getAppName());
                                 Intent intent = new Intent(MainActivity.this, ProgressActivity.class);
                                 startActivity(intent);
@@ -86,13 +86,4 @@ public class MainActivity extends AppCompatActivity {
             });
         });
     }
-
-//    @Override
-//    protected void onDestroy() {
-//        super.onDestroy();
-//
-//        if (isFinishing()) {
-//            ScanManager.getInstance().shutdown();
-//        }
-//    }
 }

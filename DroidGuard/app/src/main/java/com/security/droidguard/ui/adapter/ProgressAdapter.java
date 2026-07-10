@@ -36,6 +36,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
     public ProgressViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_scan_progress, parent, false);
+
         return new ProgressViewHolder(view);
     }
 
@@ -50,9 +51,11 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         if (job.isComplete()) {
             holder.progressSpinner.setVisibility(View.GONE);
             holder.iconComplete.setVisibility(View.VISIBLE);
+            holder.btnCancelScan.setVisibility(android.view.View.GONE);
         } else {
             holder.progressSpinner.setVisibility(View.VISIBLE);
             holder.iconComplete.setVisibility(View.GONE);
+            holder.btnCancelScan.setVisibility(android.view.View.VISIBLE);
         }
 
         holder.itemView.setOnClickListener(v -> {
@@ -83,6 +86,33 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
             return true; // Tells Android we handled the long-click
         });
+
+        holder.btnCancelScan.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(v.getContext())
+                    .setTitle("Cancel Analysis?")
+                    .setMessage("Are you sure you want to abort the malware scan for " + job.getAppName() + "?")
+                    .setPositiveButton("Abort scan", (dialog, which) -> {
+                        // This is your original cancellation code!
+                        ScanManager.getInstance().abortActiveScan(job.getAppName());
+                    })
+                    .setNegativeButton("Keep scanning", (dialog, which) -> {
+                        // Just dismiss the popup and do nothing
+                        dialog.dismiss();
+                    })
+                    .show();
+        });
+
+        holder.itemView.setOnClickListener(v -> {
+            if (job.isComplete() && job.getJsonReport() != null) {
+                Intent intent = new Intent(v.getContext(), ReportActivity.class);
+
+                // Pass the App Name and the Raw JSON string to the new Activity
+                intent.putExtra("APP_NAME", job.getAppName());
+                intent.putExtra("JSON_REPORT", job.getJsonReport());
+
+                v.getContext().startActivity(intent);
+            }
+        });
     }
 
     @Override
@@ -95,6 +125,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         TextView textStatusLog;
         ProgressBar progressSpinner;
         ImageView iconComplete;
+        ImageView btnCancelScan;
 
         public ProgressViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -102,6 +133,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
             textStatusLog = itemView.findViewById(R.id.textStatusLog);
             progressSpinner = itemView.findViewById(R.id.progressSpinner);
             iconComplete = itemView.findViewById(R.id.iconComplete);
+            btnCancelScan = itemView.findViewById(R.id.btnCancelScan);
         }
     }
 }

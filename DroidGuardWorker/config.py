@@ -9,7 +9,7 @@ RULES_DIR = BASE_DIR / "rules"
 TEMP_EXTRACT_DIR = BASE_DIR / "tmp"
 RULE_CONFIDENCE_FILE = BASE_DIR / "rule_confidence.json"
 
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080/api/internal")
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8081/api/internal")
 CALLBACK_ENDPOINT = f"{GATEWAY_URL}/complete"
 API_TIMEOUT = int(os.getenv("API_TIMEOUT", 10))
 

@@ -10,4 +10,13 @@
     <color name="status_completed_bg">#E8F5E9</color>
     <color name="status_completed_title">#2E7D32</color>
     <color name="status_completed_subtitle">#455A64</color>
+
+    <color name="report_safe_bg">#E8F5E9</color>
+    <color name="report_safe_text">#2E7D32</color>
+
+    <color name="report_suspicious_bg">#FFF3E0</color>
+    <color name="report_suspicious_text">#E65100</color>
+
+    <color name="report_malicious_bg">#FFEBEE</color>
+    <color name="report_malicious_text">#C62828</color>
 </resources>

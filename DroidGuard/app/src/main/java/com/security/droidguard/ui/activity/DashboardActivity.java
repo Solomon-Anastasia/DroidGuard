@@ -114,7 +114,7 @@ public class DashboardActivity extends AppCompatActivity {
                 // Handle the Active Card
                 if (activeCount > 0) {
                     cardActiveScan.setVisibility(View.VISIBLE);
-                    textScanningAppName.setText(activeCount + " Active Scan" + (activeCount > 1 ? "s" : ""));
+                    textScanningAppName.setText(activeCount + " Active scan" + (activeCount > 1 ? "s" : ""));
                 } else {
                     cardActiveScan.setVisibility(View.GONE);
                 }
@@ -122,7 +122,7 @@ public class DashboardActivity extends AppCompatActivity {
                 // Handle the Completed Card
                 if (completedCount > 0) {
                     cardCompletedScans.setVisibility(View.VISIBLE);
-                    textCompletedTitle.setText(completedCount + " Report" + (completedCount > 1 ? "s" : "") + " Ready");
+                    textCompletedTitle.setText(completedCount + " Report" + (completedCount > 1 ? "s" : "") + " ready");
                 } else {
                     cardCompletedScans.setVisibility(View.GONE);
                 }

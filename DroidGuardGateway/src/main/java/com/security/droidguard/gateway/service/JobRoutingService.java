@@ -27,14 +27,36 @@ public class JobRoutingService {
     }
 
     public Long createAndRouteJob(MultipartFile file, String sha256, String appName) throws IOException {
+        // 1. Save the file to disk (overwriting the old one if it exists)
         String path = storageService.saveFile(file, sha256 + ".apk");
 
-        AnalysisJob newJob = new AnalysisJob(sha256, appName, "PENDING");
-        newJob = analysisJobRepository.save(newJob);
+        // 2. Check if the job already exists in the DB (e.g., an ABORTED or FAILED job)
+        Optional<AnalysisJob> existingJobOpt = analysisJobRepository.findFirstBySha256(sha256);
 
-        queueProducer.sendJobToQueue(new AnalysisJobMessage(newJob.getJobId(), sha256, path, appName));
+        AnalysisJob jobToProcess;
+        if (existingJobOpt.isPresent()) {
+            // Recyle the old row to prevent Unique Constraint crashes!
+            jobToProcess = existingJobOpt.get();
+            jobToProcess.setStatus("PENDING"); // Move it back to pending
+            jobToProcess.setAppName(appName);  // Update the name just in case
+            jobToProcess.setYaraReport(null);  // Clear any old corrupted reports
+        } else {
+            // It's a completely new app
+            jobToProcess = new AnalysisJob(sha256, appName, "PENDING");
+        }
 
-        return newJob.getJobId();
+        // 3. Save the recycled (or new) job
+        jobToProcess = analysisJobRepository.save(jobToProcess);
+
+        // 4. Fire it off to RabbitMQ again
+        queueProducer.sendJobToQueue(new AnalysisJobMessage(
+                jobToProcess.getJobId(),
+                sha256,
+                path,
+                appName
+        ));
+
+        return jobToProcess.getJobId();
     }
 
     public Optional<AnalysisJob> findJobByHash(String sha256) {
@@ -49,9 +71,23 @@ public class JobRoutingService {
         AnalysisJob job = analysisJobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found"));
 
+        // FIX: Use trim() and equalsIgnoreCase() to prevent bypasses, and add a log!
+        if (job.getStatus() != null && "ABORTED".equalsIgnoreCase(job.getStatus().trim())) {
+            System.out.println("Job " + jobId + " was cancelled by the user. Rejecting worker completion report.");
+            return;
+        }
+
         job.setStatus("COMPLETED");
         job.setYaraReport(yaraReport);
 
+        analysisJobRepository.save(job);
+    }
+
+    public void updateJobStatus(Long jobId, String status) {
+        AnalysisJob job = analysisJobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found"));
+
+        job.setStatus(status);
         analysisJobRepository.save(job);
     }
 

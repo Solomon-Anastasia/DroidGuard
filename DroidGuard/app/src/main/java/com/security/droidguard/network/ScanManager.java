@@ -10,12 +10,15 @@ import com.security.droidguard.models.ScanJob;
 
 import org.json.JSONObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class ScanManager {
     private static ScanManager instance;
     private final MutableLiveData<List<ScanJob>> activeScansLiveData;
+    private final Map<String, AnalysisHandle> activeHandles;
     private final List<ScanJob> currentScans;
     private AppDatabase database;
 
@@ -27,6 +30,7 @@ public class ScanManager {
         activeScansLiveData = new MutableLiveData<>(currentScans);
         // 2. RESTORED: Initialize the proxy engine
         analysisProxy = new AnalysisProxy();
+        activeHandles = new HashMap<>();
     }
 
     public static synchronized ScanManager getInstance() {
@@ -44,7 +48,7 @@ public class ScanManager {
             Executors.newSingleThreadExecutor().execute(() -> {
                 List<LocalScanRecord> history = database.scanHistoryDao().getAllHistory();
                 for (LocalScanRecord record : history) {
-                    ScanJob cachedJob = new ScanJob(record.appName, "Completed. View Report.");
+                    ScanJob cachedJob = new ScanJob(record.appName, "Completed! View report");
                     cachedJob.setComplete(true);
                     cachedJob.setJsonReport(record.jsonReport);
                     currentScans.add(cachedJob);
@@ -71,7 +75,7 @@ public class ScanManager {
         activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
         // 3. RESTORED: Un-comment and fully wire the background processing pipeline
-        analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
+        AnalysisHandle handle = analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
             @Override
             public void onProgress(String status) {
                 newJob.setStatusLog(status);
@@ -80,7 +84,7 @@ public class ScanManager {
 
             @Override
             public void onSuccess(String jsonReport) {
-                newJob.setStatusLog("Completed. View Report.");
+                newJob.setStatusLog("Completed! View report");
                 newJob.setComplete(true);
                 newJob.setJsonReport(jsonReport);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -115,6 +119,36 @@ public class ScanManager {
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
             }
         });
+
+        activeHandles.put(appName, handle);
+    }
+    public void abortActiveScan(String appName) {
+        // Step A: Find the handle and stop the network pipeline
+        AnalysisHandle handle = activeHandles.get(appName);
+        if (handle != null) {
+            // Stop the local Android polling loops
+            handle.cancel();
+
+            // If it already reached the server, tell Spring Boot to kill it
+            if (handle.getJobId() != null) {
+                analysisProxy.cancelAnalysisOnServer(handle.getJobId());
+            }
+
+            // Remove it from our tracking map
+            activeHandles.remove(appName);
+        }
+
+        // Step B: Erase it from the UI immediately
+        for (int i = 0; i < currentScans.size(); i++) {
+            ScanJob job = currentScans.get(i);
+
+            // Only remove it if it is the target app AND it hasn't finished yet
+            if (job.getAppName().equals(appName) && !job.isComplete()) {
+                currentScans.remove(i);
+                activeScansLiveData.postValue(new ArrayList<>(currentScans));
+                break;
+            }
+        }
     }
 
     public void deleteScanHistory(Context context, String appNameToDelete) {

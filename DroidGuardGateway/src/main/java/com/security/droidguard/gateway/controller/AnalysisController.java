@@ -44,7 +44,7 @@ public class AnalysisController {
                         null,
                         job.getYaraReport()
                 ));
-            } else {
+            } else if ("PENDING".equals(job.getStatus())) {
                 return ResponseEntity.ok(new HashCheckResponse(
                         "PENDING",
                         String.valueOf(job.getJobId()),
@@ -129,5 +129,30 @@ public class AnalysisController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("totalScanned", 0, "safeCount", 0, "suspiciousCount", 0));
         }
+    }
+
+    // ADD THIS: For the Android App to trigger a cancellation
+    @PostMapping("/cancel/{jobId}")
+    public ResponseEntity<Void> cancelJob(@PathVariable Long jobId) {
+        logger.info("Cancellation requested for Job ID: {}", jobId);
+        try {
+            // You will need to add this method to your JobRoutingService:
+            // It should do: repository.updateStatus(jobId, "ABORTED");
+            jobRoutingService.updateJobStatus(jobId, "ABORTED");
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Failed to cancel job {}", jobId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ADD THIS: For the Python Worker to verify the job hasn't been aborted
+    @GetMapping("/internal/status/{jobId}")
+    public ResponseEntity<String> getInternalJobStatus(@PathVariable Long jobId) {
+        Optional<AnalysisJob> jobOpt = jobRoutingService.findJobById(jobId);
+        if (jobOpt.isPresent()) {
+            return ResponseEntity.ok(jobOpt.get().getStatus());
+        }
+        return ResponseEntity.notFound().build();
     }
 }

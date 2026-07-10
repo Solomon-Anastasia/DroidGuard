@@ -1,4 +1,7 @@
+import re
+import math
 import logging
+import collections
 
 from androguard.core.bytecodes.dvm import DalvikVMFormat
 from androguard.core.analysis.analysis import Analysis
@@ -41,19 +44,10 @@ DEBUG_CERT_MARKERS = ("android debug", "androiddebugkey", "debug")
 SUSPICIOUS_VALIDITY_DAYS = 36500
 
 # --- DEX API-call detection --------------------------------------------------
-# Each category is a behaviour we care about, plus the concrete framework APIs
-# that evidence it. An entry fires if ANY of its APIs is actually *called* in
-# the app's bytecode (see _api_is_referenced -- we check cross-references, so a
-# symbol merely present in the dex but never invoked does not count).
-#
-# API tuples are (class_descriptor_regex, method_name_regex) in Dalvik 'L...;'
-# form. method ".*" means "any method on this class is enough". Severities feed
-# straight into the existing high/medium/low weighting in verdict.py.
-#
-# Kept deliberately small and high-signal: every entry here should be something
-# a reviewer would actually raise an eyebrow at, not just any API a normal app
-# might touch. Noisy-but-common APIs (loadLibrary, generic crypto, HTTP) are
-# intentionally left out to keep the false-positive rate down.
+# Each category fires if ANY of its APIs is actually *called* in the bytecode
+# (see _api_is_referenced -- xref-checked, so a symbol merely present but never
+# invoked does not count). Severities are kept for the report/summary; the
+# actual verdict weighting now happens in verdict.py via channel corroboration.
 SUSPICIOUS_API_CATEGORIES = [
     {
         "name": "Dynamic code loading",
@@ -84,7 +78,7 @@ SUSPICIOUS_API_CATEGORIES = [
     },
     {
         "name": "Device identifier access",
-        "detail": "Reads hardware/SIM identifiers (device fingerprinting / exfiltration)",
+        "detail": "Reads hardware/SIM identifiers (device fingerprinting)",
         "severity": "medium",
         "apis": [
             (r"Landroid/telephony/TelephonyManager;", r"getDeviceId"),
@@ -119,6 +113,47 @@ SUSPICIOUS_API_CATEGORIES = [
         ],
     },
 ]
+
+# --- String / URL analysis ---------------------------------------------------
+# Deliberately narrow: we do NOT flag the mere presence of URLs (every app has
+# them). We only flag the two patterns that actually correlate with malice --
+# URLs pointing at a raw IP (common C2), and URLs that fetch executable payloads
+# (.apk/.dex/.jar -- classic staged dropper).
+URL_RE = re.compile(r"https?://[^\s\"'<>\\)]+", re.IGNORECASE)
+IP_URL_RE = re.compile(r"^https?://\d{1,3}(?:\.\d{1,3}){3}(?:[:/]|$)", re.IGNORECASE)
+PAYLOAD_URL_RE = re.compile(r"\.(?:apk|dex|jar)(?:[?#\"'<>]|$)", re.IGNORECASE)
+MAX_URL_LEN = 200
+MAX_URL_SAMPLES = 5
+
+# --- Packer / obfuscation detection ------------------------------------------
+# Known commercial/free packer & protector class-name signatures. Presence of
+# any of these strongly implies the DEX is packed. Packing alone is NOT
+# malicious (plenty of legit apps use protectors) -- verdict.py treats it as an
+# amplifier that only matters when a real malicious behaviour is also present.
+KNOWN_PACKER_SIGNATURES = {
+    r"Ljiagu/": "360 Jiagu",
+    r"Lcom/qihoo/util/": "360",
+    r"Lcom/stub/StubApp": "Bangcle / SecShell",
+    r"Lcom/secneo/apkwrapper/": "SecNeo",
+    r"Lcom/baidu/protect/": "Baidu Protect",
+    r"Lcom/tencent/StubShell/": "Tencent Legu",
+    r"Lcom/ali/mobisecenhance/": "Alibaba",
+    r"Lcom/dexprotector/": "DexProtector",
+}
+# Shannon entropy (bits/byte) above which a DEX looks encrypted/compressed.
+# Normal dalvik bytecode sits well below this; packed payloads approach 8.0.
+ENTROPY_THRESHOLD = 7.3
+
+# --- SMS interception discriminator ------------------------------------------
+# Reading/sending SMS is normal (messaging apps, OTP autofill). What separates
+# an SMS trojan is HIDING the message: calling abortBroadcast() to suppress it,
+# or registering the SMS receiver at abnormally high priority to grab it first.
+# Legit apps almost never do either. This is the signal that lets WhatsApp /
+# Telegram through while still catching interceptors.
+SMS_RECEIVED_ACTION = "android.provider.Telephony.SMS_RECEIVED"
+# Android caps intent-filter priority at 1000; interceptors use 999/max. Legit
+# SMS receivers leave it at the default (0).
+SMS_RECEIVER_PRIORITY_THRESHOLD = 100
 
 
 def _short_perm(permission: str) -> str:
@@ -182,7 +217,7 @@ def _check_exported_components(apk) -> list:
 
             if tag in ("receiver", "service", "provider"):
                 severity = "high" if sensitive_actions else "medium"
-            else:  # activity — much more commonly and legitimately exported
+            else:  # activity -- much more commonly and legitimately exported
                 if not sensitive_actions:
                     continue
                 severity = "medium"
@@ -258,13 +293,12 @@ def _check_certificates(apk) -> list:
 
 
 def _build_dex_analysis(apk):
-    """Build an androguard Analysis over every classesN.dex in the APK.
+    """Build ONE androguard Analysis over every classesN.dex in the APK.
 
-    NOTE: this is the expensive step -- it parses all dex bytecode and builds
-    cross-references. It's kept self-contained here so this task doesn't touch
-    extractor.py or consumer.py. If later stages also need the Analysis object,
-    build it once in extractor.py and pass `dx` through instead of rebuilding
-    it per-analysis."""
+    This is the expensive step (parses all bytecode + builds cross-references),
+    so it's done once here and shared by every DEX-based check below. If future
+    stages outside this module also need it, lift this into extractor.py and
+    pass `dx` through instead of rebuilding."""
     dx = Analysis()
     for dex_bytes in apk.get_all_dex():
         dx.add(DalvikVMFormat(dex_bytes))
@@ -274,9 +308,8 @@ def _build_dex_analysis(apk):
 
 def _api_is_referenced(dx, class_regex: str, method_regex: str) -> bool:
     """True if a method matching (class_regex, method_regex) is actually called
-    somewhere in the app. We require at least one inbound cross-reference so a
-    symbol that only sits in the dex string/method table -- but is never
-    invoked -- doesn't produce a false finding."""
+    somewhere in the app. Requires at least one inbound cross-reference so a
+    symbol that only sits in the dex tables but is never invoked doesn't fire."""
     for method_analysis in dx.find_methods(classname=class_regex, methodname=method_regex):
         for _ in method_analysis.get_xref_from():
             return True
@@ -284,10 +317,6 @@ def _api_is_referenced(dx, class_regex: str, method_regex: str) -> bool:
 
 
 def _check_dex_api_calls(dx) -> list:
-    """Flag suspicious framework-API usage in the decompiled bytecode. This is
-    what lets a manifest permission be corroborated against the code that
-    actually exercises it (full corroboration scoring comes in a later step;
-    for now each behaviour is reported on its own)."""
     findings = []
 
     for category in SUSPICIOUS_API_CATEGORIES:
@@ -298,9 +327,7 @@ def _check_dex_api_calls(dx) -> list:
                     fired = True
                     break
             except Exception as e:
-                logger.warning(
-                    f"API check failed for {class_regex} -> {method_regex}: {e}"
-                )
+                logger.warning(f"API check failed for {class_regex} -> {method_regex}: {e}")
 
         if fired:
             findings.append({
@@ -313,25 +340,182 @@ def _check_dex_api_calls(dx) -> list:
     return findings
 
 
-def analyze(apk) -> dict:
+def _iter_referenced_strings(dx):
+    """Yield string values that are actually referenced from code. Filtering to
+    referenced strings keeps dead constants / resource junk out of the results,
+    which is the main source of string-based false positives."""
+    try:
+        string_analyses = dx.get_strings()
+    except Exception as e:
+        logger.warning(f"Failed to enumerate DEX strings: {e}")
+        return
+
+    for sa in string_analyses:
+        try:
+            # If xref info is available and empty, the string is unused -> skip.
+            xrefs = sa.get_xref_from()
+            if xrefs is not None and len(list(xrefs)) == 0:
+                continue
+        except Exception:
+            pass  # xref unavailable in this androguard build -> keep the string
+
+        try:
+            value = sa.get_value()
+        except Exception:
+            continue
+        if value:
+            yield value
+
+
+def _check_strings(dx) -> list:
+    findings = []
+    ip_urls = set()
+    payload_urls = set()
+
+    for value in _iter_referenced_strings(dx):
+        for match in URL_RE.finditer(value):
+            url = match.group(0)[:MAX_URL_LEN]
+            if IP_URL_RE.match(url):
+                ip_urls.add(url)
+            if PAYLOAD_URL_RE.search(url):
+                payload_urls.add(url)
+
+    if ip_urls:
+        findings.append({
+            "type": "suspicious_string",
+            "name": "Hardcoded IP-address URL",
+            "detail": f"{len(ip_urls)} URL(s) pointing at raw IPs (possible C2)",
+            "samples": sorted(ip_urls)[:MAX_URL_SAMPLES],
+            "severity": "medium",
+        })
+
+    if payload_urls:
+        findings.append({
+            "type": "suspicious_string",
+            "name": "Executable-payload URL (.apk/.dex/.jar)",
+            "detail": f"{len(payload_urls)} URL(s) that fetch runnable code (staged dropper)",
+            "samples": sorted(payload_urls)[:MAX_URL_SAMPLES],
+            "severity": "high",
+        })
+
+    return findings
+
+
+def _shannon_entropy(data: bytes) -> float:
+    if not data:
+        return 0.0
+    counts = collections.Counter(data)
+    length = len(data)
+    return -sum((c / length) * math.log2(c / length) for c in counts.values())
+
+
+def _check_packer(apk, dx) -> list:
     findings = []
 
-    try:
-        findings.extend(_check_permission_combos(apk.get_permissions()))
-    except Exception as e:
-        logger.warning(f"Failed to check permission combos: {e}")
+    # 1) Known packer/protector class-name signatures (the reliable signal).
+    detected = []
+    for signature, label in KNOWN_PACKER_SIGNATURES.items():
+        try:
+            for _ in dx.find_classes(signature):
+                detected.append(label)
+                break
+        except Exception as e:
+            logger.warning(f"Packer signature check failed for {signature}: {e}")
 
+    if detected:
+        findings.append({
+            "type": "obfuscation",
+            "name": "Known packer/protector detected",
+            "detail": ", ".join(sorted(set(detected))),
+            "severity": "medium",
+        })
+
+    # 2) High-entropy DEX (weaker, supporting signal).
+    try:
+        for dex_bytes in apk.get_all_dex():
+            entropy = _shannon_entropy(dex_bytes)
+            if entropy >= ENTROPY_THRESHOLD:
+                findings.append({
+                    "type": "obfuscation",
+                    "name": "High-entropy DEX (possible encryption/packing)",
+                    "detail": f"entropy={entropy:.2f} bits/byte",
+                    "severity": "low",
+                })
+                break
+    except Exception as e:
+        logger.warning(f"DEX entropy check failed: {e}")
+
+    return findings
+
+
+def _check_sms_interception(apk, dx) -> list:
+    """Detect the SMS-hiding behaviours that separate a trojan from a legit app
+    that merely reads/sends SMS."""
+    markers = []
+
+    # 1) abortBroadcast() in code -> actively suppresses the incoming SMS so it
+    #    never reaches the user or other apps. Classic OTP-stealer behaviour.
+    try:
+        if _api_is_referenced(dx, r"Landroid/content/BroadcastReceiver;", r"abortBroadcast"):
+            markers.append("abortBroadcast() call (suppresses incoming SMS)")
+    except Exception as e:
+        logger.warning(f"abortBroadcast check failed: {e}")
+
+    # 2) High-priority SMS receiver -> registers to receive SMS *before* other
+    #    apps (including the default messaging app), so it can intercept/hide.
+    try:
+        root = apk.get_android_manifest_xml()
+        for receiver in root.iter("receiver"):
+            for intent_filter in receiver.iter("intent-filter"):
+                priority = intent_filter.get(MANIFEST_NS + "priority")
+                if priority is None:
+                    continue
+                actions = {a.get(MANIFEST_NS + "name") for a in intent_filter.iter("action")}
+                if SMS_RECEIVED_ACTION not in actions:
+                    continue
+                try:
+                    if int(priority) >= SMS_RECEIVER_PRIORITY_THRESHOLD:
+                        markers.append(f"high-priority SMS receiver (priority={priority})")
+                except (ValueError, TypeError):
+                    continue
+    except Exception as e:
+        logger.warning(f"SMS receiver priority check failed: {e}")
+
+    if not markers:
+        return []
+
+    return [{
+        "type": "sms_interception",
+        "name": "SMS interception markers",
+        "detail": "; ".join(sorted(set(markers))),
+        "severity": "high",
+    }]
+
+
+def analyze(apk) -> dict:
+    findings = []
+    permissions = []
+
+    try:
+        permissions = [_short_perm(p) for p in apk.get_permissions()]
+    except Exception as e:
+        logger.warning(f"Failed to read permissions: {e}")
+
+    findings.extend(_check_permission_combos(permissions))
     findings.extend(_check_exported_components(apk))
     findings.extend(_check_certificates(apk))
 
-    # DEX-level API-call analysis. Wrapped defensively: if bytecode parsing
-    # fails (corrupt/packed dex, androguard hiccup), the manifest-based checks
-    # above still produce a valid report rather than failing the whole job.
+    # All DEX-based analysis shares one Analysis object. Wrapped defensively so
+    # a parsing failure on packed/corrupt bytecode still leaves the manifest
+    # findings intact rather than failing the whole job.
     try:
         dx = _build_dex_analysis(apk)
         findings.extend(_check_dex_api_calls(dx))
+        findings.extend(_check_strings(dx))
+        findings.extend(_check_packer(apk, dx))
+        findings.extend(_check_sms_interception(apk, dx))
     except Exception as e:
-        logger.warning(f"Failed to run DEX API-call analysis: {e}")
+        logger.warning(f"Failed to run DEX-based analysis: {e}")
 
     high = [f for f in findings if f["severity"] == "high"]
     medium = [f for f in findings if f["severity"] == "medium"]
@@ -340,6 +524,9 @@ def analyze(apk) -> dict:
     return {
         "status": "completed",
         "findings": findings,
+        # Short permission names, exposed so the verdict engine can corroborate
+        # a requested permission against the code that actually exercises it.
+        "permissions": permissions,
         "high_severity_count": len(high),
         "medium_severity_count": len(medium),
         "low_severity_count": len(low),
