@@ -151,7 +151,6 @@ public class ApiClient {
     }
 
     public void cancelJob(String jobId) throws Exception {
-        // Replace BASE_URL with however you manage your Gateway URL
         URL url = new URL(BASE_URL + "/cancel/" + jobId);
 
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -159,7 +158,6 @@ public class ApiClient {
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(10_000);
 
-        // Execute the request
         int responseCode = conn.getResponseCode();
 
         if (responseCode != 200) {

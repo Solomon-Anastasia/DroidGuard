@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface AnalysisJobRepository extends JpaRepository<AnalysisJob, Long> {
     Optional<AnalysisJob> findFirstBySha256(String sha256);
+
     int countByStatus(String status);
 
     @Query(value = "SELECT COUNT(*) FROM analysis_jobs WHERE yara_report->>'verdict' = 'clean'", nativeQuery = true)

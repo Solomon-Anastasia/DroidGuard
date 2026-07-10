@@ -1,6 +1,7 @@
 package com.security.droidguard.network;
 
 import android.content.Context;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -9,6 +10,7 @@ import com.security.droidguard.database.LocalScanRecord;
 import com.security.droidguard.models.ScanJob;
 
 import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,14 +23,11 @@ public class ScanManager {
     private final Map<String, AnalysisHandle> activeHandles;
     private final List<ScanJob> currentScans;
     private AppDatabase database;
-
-    // 1. RESTORED: The core network engine field
     private final AnalysisProxy analysisProxy;
 
     private ScanManager() {
         currentScans = new ArrayList<>();
         activeScansLiveData = new MutableLiveData<>(currentScans);
-        // 2. RESTORED: Initialize the proxy engine
         analysisProxy = new AnalysisProxy();
         activeHandles = new HashMap<>();
     }
@@ -44,9 +43,10 @@ public class ScanManager {
         if (this.database == null) {
             this.database = AppDatabase.getDatabase(context);
 
-            // Load persistent records from Room into your active UI view on startup
+            // Load persistent records from room into active UI view on startup
             Executors.newSingleThreadExecutor().execute(() -> {
                 List<LocalScanRecord> history = database.scanHistoryDao().getAllHistory();
+
                 for (LocalScanRecord record : history) {
                     ScanJob cachedJob = new ScanJob(record.appName, "Completed! View report");
                     cachedJob.setComplete(true);
@@ -65,7 +65,6 @@ public class ScanManager {
     public void startScan(String apkPath, String appName) {
         for (ScanJob job : currentScans) {
             if (job.getAppName().equals(appName)) {
-                // The app is already scanning or already completed in this session. Abort!
                 return;
             }
         }
@@ -74,7 +73,6 @@ public class ScanManager {
         currentScans.add(newJob);
         activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-        // 3. RESTORED: Un-comment and fully wire the background processing pipeline
         AnalysisHandle handle = analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
             @Override
             public void onProgress(String status) {
@@ -89,16 +87,17 @@ public class ScanManager {
                 newJob.setJsonReport(jsonReport);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-                // Save it persistently to Room SQLite so it never vanishes on restart
+                // Save it persistently to Room SQLite
                 Executors.newSingleThreadExecutor().execute(() -> {
-                    String verdict = "safe"; // baseline default
+                    String verdict = "safe";
+
                     try {
                         JSONObject json = new JSONObject(jsonReport);
                         if (json.has("verdict")) {
                             verdict = json.getString("verdict");
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
 
                     LocalScanRecord record = new LocalScanRecord(
@@ -122,27 +121,23 @@ public class ScanManager {
 
         activeHandles.put(appName, handle);
     }
+
     public void abortActiveScan(String appName) {
-        // Step A: Find the handle and stop the network pipeline
         AnalysisHandle handle = activeHandles.get(appName);
         if (handle != null) {
-            // Stop the local Android polling loops
             handle.cancel();
 
-            // If it already reached the server, tell Spring Boot to kill it
             if (handle.getJobId() != null) {
                 analysisProxy.cancelAnalysisOnServer(handle.getJobId());
             }
 
-            // Remove it from our tracking map
             activeHandles.remove(appName);
         }
 
-        // Step B: Erase it from the UI immediately
+        // Remove UI part
         for (int i = 0; i < currentScans.size(); i++) {
             ScanJob job = currentScans.get(i);
 
-            // Only remove it if it is the target app AND it hasn't finished yet
             if (job.getAppName().equals(appName) && !job.isComplete()) {
                 currentScans.remove(i);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -153,25 +148,16 @@ public class ScanManager {
 
     public void deleteScanHistory(Context context, String appNameToDelete) {
         Executors.newSingleThreadExecutor().execute(() -> {
-            // 1. Delete it from the local SQLite database
             AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
 
-            // 2. (Optional) If you want to also remove it from the active UI list in ScanManager
             for (int i = 0; i < currentScans.size(); i++) {
                 if (currentScans.get(i).getAppName().equals(appNameToDelete)) {
                     currentScans.remove(i);
                     break;
                 }
             }
-            // Update the LiveData so the ProgressActivity UI refreshes instantly
+
             activeScansLiveData.postValue(new ArrayList<>(currentScans));
         });
-    }
-
-    // Safely stop background threads if needed
-    public void shutdown() {
-        if (analysisProxy != null) {
-            analysisProxy.shutdown();
-        }
     }
 }

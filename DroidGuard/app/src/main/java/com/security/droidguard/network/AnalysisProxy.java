@@ -90,11 +90,11 @@ public class AnalysisProxy {
         int maxAttempts = 60 + 60 + 60 + 60; // Timeout 5 min each
         int attempts = 0;
 
-        Log.d(TAG, "Started polling API Gateway for JobID: " + jobId);
+        Log.d(TAG, "Started polling API Gateway for job ID: " + jobId);
 
         while (!completed && attempts < maxAttempts) {
             if (cancelled.get()) {
-                Log.d(TAG, "Polling cancelled by caller for JobID: " + jobId);
+                Log.d(TAG, "Polling cancelled by caller for job ID: " + jobId);
                 return;
             }
 
@@ -109,11 +109,11 @@ public class AnalysisProxy {
                 JSONObject reportObj = statusJson.optJSONObject("yaraReport");
                 String report = (reportObj != null) ? reportObj.toString() : "{}";
 
-                Log.d(TAG, "Analysis worker finished job.");
+                Log.d(TAG, "Analysis worker finished job");
 
                 postSuccess(callback, cancelled, report);
             } else if ("FAILED".equalsIgnoreCase(currentStatus)) {
-                Log.e(TAG, "Asynchronous analysis worker failed processing the APK!");
+                Log.e(TAG, "Analysis worker failed processing the APK!");
 
                 postError(callback, cancelled, "Analysis worker failed to process the APK!");
                 return;
@@ -127,7 +127,7 @@ public class AnalysisProxy {
                     Thread.sleep(5_000); // 5s polling interval
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    Log.d(TAG, "Polling interrupted for JobID: " + jobId);
+                    Log.d(TAG, "Polling interrupted for job ID: " + jobId);
                     return;
                 }
             }
@@ -141,9 +141,8 @@ public class AnalysisProxy {
     public void cancelAnalysisOnServer(String jobId) {
         executor.execute(() -> {
             try {
-                // You will need to add this mapping to your ApiClient
                 apiClient.cancelJob(jobId);
-                Log.d(TAG, "Sent abort signal to Gateway for JobID: " + jobId);
+                Log.d(TAG, "Sent abort signal to Gateway for job ID: " + jobId);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to send cancel signal to server", e);
             }
@@ -152,6 +151,7 @@ public class AnalysisProxy {
 
     private void postSuccess(AnalysisCallback callback, AtomicBoolean cancelled, String report) {
         if (cancelled.get()) return;
+
         mainHandler.post(() -> {
             if (!cancelled.get()) callback.onSuccess(report);
         });
@@ -159,6 +159,7 @@ public class AnalysisProxy {
 
     private void postProgress(AnalysisCallback callback, AtomicBoolean cancelled, String status) {
         if (cancelled.get()) return;
+
         mainHandler.post(() -> {
             if (!cancelled.get()) callback.onProgress(status);
         });
@@ -166,6 +167,7 @@ public class AnalysisProxy {
 
     private void postError(AnalysisCallback callback, AtomicBoolean cancelled, String error) {
         if (cancelled.get()) return;
+
         mainHandler.post(() -> {
             if (!cancelled.get()) callback.onError(error);
         });

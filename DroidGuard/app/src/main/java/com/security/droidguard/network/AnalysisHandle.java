@@ -14,10 +14,6 @@ public final class AnalysisHandle {
         cancelled.set(true);
     }
 
-    public boolean isCancelled() {
-        return cancelled.get();
-    }
-
     public void setJobId(String jobId) {
         this.jobId = jobId;
     }

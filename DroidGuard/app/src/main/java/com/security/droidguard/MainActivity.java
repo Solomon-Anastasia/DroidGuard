@@ -35,8 +35,6 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        // ... Window insets setup ...
-
         MaterialToolbar toolbar = findViewById(R.id.mainToolbar);
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
@@ -44,30 +42,22 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // 1. Get ALL installed apps from the system
         List<InstalledApp> allInstalledApps = ApkExtractor.getUserApps(this);
 
-        // 2. Run a background thread to check the database and filter the list
         Executors.newSingleThreadExecutor().execute(() -> {
-
-            // Get the list of apps we have already scanned from Room DB
             List<String> alreadyScannedApps = AppDatabase.getDatabase(MainActivity.this)
                     .scanHistoryDao()
                     .getScannedAppNames();
 
-            // Create a new list for apps that haven't been scanned yet
             List<InstalledApp> appsToShow = new ArrayList<>();
 
             for (InstalledApp app : allInstalledApps) {
-                // If the DB does NOT contain this app, add it to the final list
                 if (!alreadyScannedApps.contains(app.getAppName())) {
                     appsToShow.add(app);
                 }
             }
 
-            // 3. Jump back to the Main UI Thread to update the screen
             runOnUiThread(() -> {
-                // Initialize the adapter using the FILTERED list (appsToShow)
                 adapter = new AppListAdapter(appsToShow, app -> {
 
                     new MaterialAlertDialogBuilder(MainActivity.this)

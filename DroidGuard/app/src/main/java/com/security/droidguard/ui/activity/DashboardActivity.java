@@ -6,7 +6,6 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.button.MaterialButton;
@@ -16,17 +15,12 @@ import com.security.droidguard.R;
 import com.security.droidguard.database.AppDatabase;
 import com.security.droidguard.database.ScanHistoryDao;
 import com.security.droidguard.models.ScanJob;
-import com.security.droidguard.network.ApiClient;
 import com.security.droidguard.network.ScanManager;
 
-import org.json.JSONObject;
-
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DashboardActivity extends AppCompatActivity {
-
     private TextView textTotalScanned, textSafeApps, textThreatsFound;
     private MaterialCardView cardActiveScan;
     private TextView textScanningAppName, textScanStatusLog;
@@ -38,7 +32,6 @@ public class DashboardActivity extends AppCompatActivity {
     private ScanHistoryDao scanHistoryDao;
     private SwipeRefreshLayout swipeRefreshLayout;
 
-    private final ApiClient apiClient = new ApiClient();
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     @Override
@@ -50,20 +43,13 @@ public class DashboardActivity extends AppCompatActivity {
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
 
-        // Configure color scheme for refresh spinner
         swipeRefreshLayout.setColorSchemeColors(
                 com.google.android.material.color.MaterialColors.getColor(swipeRefreshLayout, androidx.appcompat.R.attr.colorPrimary),
                 android.graphics.Color.parseColor("#2E7D32")
         );
 
         // Listen for user swiping down
-        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                // Re-calculate the stats from Room DB
-                fetchMetricsFromGateway();
-            }
-        });
+        swipeRefreshLayout.setOnRefreshListener(this::loadLocalMetrics);
 
         textTotalScanned = findViewById(R.id.textTotalScanned);
         textSafeApps = findViewById(R.id.textSafeApps);
@@ -78,13 +64,13 @@ public class DashboardActivity extends AppCompatActivity {
 
         btnOpenAppList = findViewById(R.id.btnOpenAppList);
 
-        // 1. Navigation to the full App List
+        // Navigation to the full app List
         btnOpenAppList.setOnClickListener(v -> {
             Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
             startActivity(intent);
         });
 
-        // 2. Navigation back to the Progress Page when the Active Scan card is clicked
+        // Navigation back to the progress page when the active scan card is clicked
         cardActiveScan.setOnClickListener(v -> {
             Intent intent = new Intent(DashboardActivity.this, ProgressActivity.class);
             startActivity(intent);
@@ -95,37 +81,33 @@ public class DashboardActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // 3. Observe the ScanManager to show/hide the Active Scan card dynamically
-        ScanManager.getInstance().getActiveScans().observe(this, new Observer<List<ScanJob>>() {
-            @Override
-            public void onChanged(List<ScanJob> scanJobs) {
-                int activeCount = 0;
-                int completedCount = 0;
+        // Observe the ScanManager to show/hide the active scan card dynamically
+        ScanManager.getInstance().getActiveScans().observe(this, scanJobs -> {
+            int activeCount = 0;
+            int completedCount = 0;
 
-                // Count the jobs
-                for (ScanJob job : scanJobs) {
-                    if (!job.isComplete()) {
-                        activeCount++;
-                    } else {
-                        completedCount++;
-                    }
-                }
-
-                // Handle the Active Card
-                if (activeCount > 0) {
-                    cardActiveScan.setVisibility(View.VISIBLE);
-                    textScanningAppName.setText(activeCount + " Active scan" + (activeCount > 1 ? "s" : ""));
+            for (ScanJob job : scanJobs) {
+                if (!job.isComplete()) {
+                    activeCount++;
                 } else {
-                    cardActiveScan.setVisibility(View.GONE);
+                    completedCount++;
                 }
+            }
 
-                // Handle the Completed Card
-                if (completedCount > 0) {
-                    cardCompletedScans.setVisibility(View.VISIBLE);
-                    textCompletedTitle.setText(completedCount + " Report" + (completedCount > 1 ? "s" : "") + " ready");
-                } else {
-                    cardCompletedScans.setVisibility(View.GONE);
-                }
+            // Handle the active card
+            if (activeCount > 0) {
+                cardActiveScan.setVisibility(View.VISIBLE);
+                textScanningAppName.setText(activeCount + " Active scan" + (activeCount > 1 ? "s" : ""));
+            } else {
+                cardActiveScan.setVisibility(View.GONE);
+            }
+
+            // Handle the Completed Card
+            if (completedCount > 0) {
+                cardCompletedScans.setVisibility(View.VISIBLE);
+                textCompletedTitle.setText(completedCount + " Report" + (completedCount > 1 ? "s" : "") + " ready");
+            } else {
+                cardCompletedScans.setVisibility(View.GONE);
             }
         });
 
@@ -140,37 +122,16 @@ public class DashboardActivity extends AppCompatActivity {
 
     private void loadDashboardStats() {
         updateDashboardUI(0, 0, 0);
-        fetchMetricsFromGateway();
+        loadLocalMetrics();
     }
 
-    //    private void fetchMetricsFromGateway() {
-//        executorService.execute(() -> {
-//            try {
-//                String jsonResponse = apiClient.getReportsSummary();
-//                JSONObject json = new JSONObject(jsonResponse);
-//
-//                int totalScanned = json.getInt("totalScanned");
-//                int safeCount = json.getInt("safeCount");
-//                int suspiciousCount = json.getInt("suspiciousCount");
-//
-//                runOnUiThread(() -> updateDashboardUI(totalScanned, safeCount, suspiciousCount));
-//
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//                runOnUiThread(() -> updateDashboardUI(0, 0, 0));
-//            }
-//        });
-//    }
-    private void fetchMetricsFromGateway() {
-        // Rename this method to loadLocalMetrics() since we aren't hitting the Gateway anymore!
+    private void loadLocalMetrics() {
         executorService.execute(() -> {
             try {
-                // Instantly pull the exact numbers from the local SQLite database
                 int totalScanned = scanHistoryDao.getTotalScans();
                 int safeCount = scanHistoryDao.getSafeCount();
                 int suspiciousCount = scanHistoryDao.getSuspiciousCount();
 
-                // Push exact numbers to the UI
                 runOnUiThread(() -> updateDashboardUI(totalScanned, safeCount, suspiciousCount));
 
             } catch (Exception e) {

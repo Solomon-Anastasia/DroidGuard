@@ -11,7 +11,7 @@ public class LocalScanRecord {
     public String appName;
     public String packageName;
     public String jsonReport;
-    public String verdict; // "safe", "suspicious", or "malicious"
+    public String verdict; // safe, suspicious, malicious
     public long scanTimestamp;
 
     public LocalScanRecord(String appName, String packageName, String jsonReport, String verdict, long scanTimestamp) {

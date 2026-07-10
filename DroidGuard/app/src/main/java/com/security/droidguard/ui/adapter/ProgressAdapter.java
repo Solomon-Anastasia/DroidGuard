@@ -25,7 +25,6 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
     private List<ScanJob> scanJobs = new ArrayList<>();
 
-    // Called by ProgressActivity whenever LiveData emits a new list
     public void updateData(List<ScanJob> newJobs) {
         this.scanJobs = newJobs;
         notifyDataSetChanged();
@@ -47,7 +46,6 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         holder.textAppName.setText(job.getAppName());
         holder.textStatusLog.setText(job.getStatusLog());
 
-        // Toggle UI based on whether the Gateway finished the job
         if (job.isComplete()) {
             holder.progressSpinner.setVisibility(View.GONE);
             holder.iconComplete.setVisibility(View.VISIBLE);
@@ -60,13 +58,11 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
         holder.itemView.setOnClickListener(v -> {
             if (job.isComplete() && job.getJsonReport() != null) {
-                // If finished, launch the Report Activity
                 Intent intent = new Intent(v.getContext(), ReportActivity.class);
                 intent.putExtra("APP_NAME", job.getAppName());
                 intent.putExtra("JSON_REPORT", job.getJsonReport());
                 v.getContext().startActivity(intent);
             } else {
-                // If still scanning, give user feedback
                 Toast.makeText(v.getContext(), "Analysis is still running...", Toast.LENGTH_SHORT).show();
             }
         });
@@ -76,15 +72,12 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                     .setTitle("Delete record?")
                     .setMessage("Remove the scan history for " + job.getAppName() + "?")
                     .setPositiveButton("Delete", (dialog, which) -> {
-
-                        // Call the delete method we just made!
                         ScanManager.getInstance().deleteScanHistory(v.getContext(), job.getAppName());
-
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
 
-            return true; // Tells Android we handled the long-click
+            return true;
         });
 
         holder.btnCancelScan.setOnClickListener(v -> {
@@ -92,11 +85,9 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                     .setTitle("Cancel Analysis?")
                     .setMessage("Are you sure you want to abort the malware scan for " + job.getAppName() + "?")
                     .setPositiveButton("Abort scan", (dialog, which) -> {
-                        // This is your original cancellation code!
                         ScanManager.getInstance().abortActiveScan(job.getAppName());
                     })
                     .setNegativeButton("Keep scanning", (dialog, which) -> {
-                        // Just dismiss the popup and do nothing
                         dialog.dismiss();
                     })
                     .show();
@@ -106,7 +97,6 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
             if (job.isComplete() && job.getJsonReport() != null) {
                 Intent intent = new Intent(v.getContext(), ReportActivity.class);
 
-                // Pass the App Name and the Raw JSON string to the new Activity
                 intent.putExtra("APP_NAME", job.getAppName());
                 intent.putExtra("JSON_REPORT", job.getJsonReport());
 

@@ -29,7 +29,7 @@ public class AnalysisJob {
     private String appName;
 
     @Column(name = "status", nullable = false)
-    private String status; // PENDING, COMPLETED, FAILED, INTERRUPTED, DELETED
+    private String status; // NEW, PENDING, COMPLETED, ABORTED
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "yara_report", columnDefinition = "jsonb")
