@@ -68,10 +68,10 @@ public class AnalysisController {
             Long generatedJobId = jobRoutingService.createAndRouteJob(file, sha256, appName);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new UploadResponse(String.valueOf(generatedJobId), "File accepted and sent for asynchronous analysis"));
+                    .body(new UploadResponse(String.valueOf(generatedJobId), "File accepted and sent for analysis"));
 
         } catch (IOException ex) {
-            logger.error("Error processing the APK file.", ex);
+            logger.error("Error processing the APK file!", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -85,7 +85,6 @@ public class AnalysisController {
         }
 
         AnalysisJob job = jobOpt.get();
-
         return ResponseEntity.ok(new StatusResponse(
                 job.getStatus(),
                 "COMPLETED".equals(job.getStatus()) ? job.getYaraReport() : null
@@ -94,7 +93,7 @@ public class AnalysisController {
 
     @PostMapping("/internal/complete")
     public ResponseEntity<Void> receiveWorkerReport(@RequestBody WorkerCallbackRequest request) {
-        logger.info("Received analysis completion report for Job ID: {}", request.getJobId());
+        logger.info("Received analysis completion report for job ID: {}", request.getJobId());
 
         if (request.getJobId() == null || request.getYaraReport() == null) {
             return ResponseEntity.badRequest().build();
@@ -112,7 +111,7 @@ public class AnalysisController {
 
     @GetMapping("/reports/summary")
     public ResponseEntity<Map<String, Integer>> getReportsSummary() {
-        logger.info("Fetching strict database reports summary for dashboard");
+        logger.info("Fetching database reports summary for dashboard");
 
         try {
             int totalCompleted = jobRoutingService.countTotalCompletedJobs();
@@ -126,33 +125,32 @@ public class AnalysisController {
             ));
         } catch (Exception e) {
             logger.error("Failed to fetch reports summary", e);
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("totalScanned", 0, "safeCount", 0, "suspiciousCount", 0));
         }
     }
 
-    // ADD THIS: For the Android App to trigger a cancellation
     @PostMapping("/cancel/{jobId}")
     public ResponseEntity<Void> cancelJob(@PathVariable Long jobId) {
-        logger.info("Cancellation requested for Job ID: {}", jobId);
+        logger.info("Cancellation requested for job ID: {}", jobId);
+
         try {
-            // You will need to add this method to your JobRoutingService:
-            // It should do: repository.updateStatus(jobId, "ABORTED");
             jobRoutingService.updateJobStatus(jobId, "ABORTED");
+
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Failed to cancel job {}", jobId, e);
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // ADD THIS: For the Python Worker to verify the job hasn't been aborted
     @GetMapping("/internal/status/{jobId}")
     public ResponseEntity<String> getInternalJobStatus(@PathVariable Long jobId) {
         Optional<AnalysisJob> jobOpt = jobRoutingService.findJobById(jobId);
-        if (jobOpt.isPresent()) {
-            return ResponseEntity.ok(jobOpt.get().getStatus());
-        }
-        return ResponseEntity.notFound().build();
+
+        return jobOpt.map(analysisJob -> ResponseEntity.ok(analysisJob.getStatus()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

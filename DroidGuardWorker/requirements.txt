@@ -1,13 +1,13 @@
-# Message Broker
+# Message broker
 pika==1.3.2
 
-# API Communication
+# API communication
 requests==2.31.0
 
-# Configuration Management
+# Configuration management
 python-dotenv==1.0.1
 
-# Static Analysis + Parsing
+# Static analysis + parsing
 yara-python==4.3.1
 androguard==3.4.0-a1
 lxml~=6.1.1

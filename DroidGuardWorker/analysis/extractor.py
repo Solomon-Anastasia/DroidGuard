@@ -22,7 +22,9 @@ def extract_apk(apk_path: str, job_id: str):
         manifest_xml = parsed_apk.get_android_manifest_xml()
 
         if manifest_xml is not None:
-            manifest_path = job_dir / "AndroidManifest.xml"
+            manifest_path = job_dir / "AndroidManifest.xml"  # Join dir
+
+            # Transform binary XML into readable XML
             with open(manifest_path, "wb") as f:
                 f.write(etree.tostring(manifest_xml, pretty_print=True, encoding="utf-8"))
 
@@ -39,6 +41,7 @@ def extract_apk(apk_path: str, job_id: str):
 
 def cleanup_temp_dir(job_id: str):
     job_dir = TEMP_EXTRACT_DIR / str(job_id)
+
     if job_dir.exists() and job_dir.is_dir():
         try:
             shutil.rmtree(job_dir)

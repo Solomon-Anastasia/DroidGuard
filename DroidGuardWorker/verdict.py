@@ -7,28 +7,21 @@ VERDICT_MALICIOUS = "malicious"
 VERDICT_SUSPICIOUS = "suspicious"
 VERDICT_CLEAN = "clean"
 
-# Verdict thresholds on the blended 0.0-1.0 threat score.
 MALICIOUS_THRESHOLD = 0.75
 SUSPICIOUS_THRESHOLD = 0.40
-# A score can only reach the malicious band when a *strong* behaviour is
-# corroborated by >=2 independent channels. Without that, we hard-cap here so a
-# pile of single-source signals can, at most, land in "suspicious / review".
 SUSPICIOUS_CEILING = 0.74
 
-# --- Evidence channels -------------------------------------------------------
-# A "channel" is an independent line of evidence. Corroboration = the same
+# Evidence channels
+# A channel is an independent line of evidence. Corroboration = the same
 # behaviour being pointed at by DIFFERENT channels. The weight is how much a
 # single channel contributes before corroboration bonuses.
-CH_SIGNATURE = "yara_signature"      # curated rule match -> trusted, specific
-CH_DEX_API = "dex_api"               # code actually calls the API
-CH_STRING = "string"                 # hardcoded URL/IP evidence
+CH_SIGNATURE = "yara_signature"  # curated rule match -> trusted, specific
+CH_DEX_API = "dex_api"  # code actually calls the API
+CH_STRING = "string"  # hardcoded URL/IP evidence
 CH_STRUCTURE = "manifest_structure"  # exported component surface
-CH_PERMISSION = "permission"         # requested permission (cheap -> weak alone)
+CH_PERMISSION = "permission"  # requested permission (cheap -> weak alone)
 CH_CERT = "certificate"
-CH_BEHAVIOR = "behavior_marker"      # a *discriminator* of malicious INTENT
-                                     # (e.g. hiding an SMS) -- the thing that
-                                     # separates a trojan from a legit app that
-                                     # touches the same API.
+CH_BEHAVIOR = "behavior_marker"  # a discriminator of malicious INTENT
 
 CHANNEL_WEIGHTS = {
     CH_SIGNATURE: 0.45,
@@ -39,25 +32,21 @@ CHANNEL_WEIGHTS = {
     CH_CERT: 0.15,
     CH_BEHAVIOR: 0.30,
 }
-SIGNATURE_LOW_WEIGHT = 0.10  # low-confidence (known-noisy) YARA match
-
-# Behaviours common in benign apps are capped here when they aren't backed by a
-# malice discriminator -- so an app that merely *touches* SMS/boot/device-id
-# can't be pushed to a conviction. Kept just under SUSPICIOUS_THRESHOLD so a
-# single such behaviour reads as clean, not review.
+SIGNATURE_LOW_WEIGHT = 0.10
 CONTEXT_CAP = 0.30
 
-# When >=2 distinct channels agree on a behaviour, agreement is superlinear
-# evidence -- reward it. A third channel adds a further nudge.
+# When >=2 distinct channels agree on a behaviour, agreement is superlinear evidence -- reward it
 CORROBORATION_MULTIPLIER = 1.5
 TRIPLE_CHANNEL_BONUS = 1.1
-# How much non-primary behaviours contribute on top of the strongest one.
+
+# How much non-primary behaviours contribute on top of the strongest one
 SECONDARY_WEIGHT = 0.15
-# Packing/obfuscation is never malicious alone; it only sharpens a verdict that
-# already has a real malicious behaviour behind it.
+
+# Packing/obfuscation is never malicious alone, it only sharpens a verdict that
+# already has a real malicious behaviour behind it
 EVASION_AMPLIFIER = 1.15
 
-# --- Behaviours --------------------------------------------------------------
+# Behaviours
 B_SMS = "sms_abuse"
 B_OVERLAY = "overlay_attack"
 B_DYNAMIC = "dynamic_payload"
@@ -66,27 +55,17 @@ B_SIGNATURE = "known_signature"
 B_FINGERPRINT = "device_fingerprinting"
 B_PERSIST = "persistence"
 B_INTEGRITY = "integrity_anomaly"
-B_EVASION = "evasion"  # amplifier only -- never scored as a primary behaviour
+B_EVASION = "evasion"
 
 # Behaviours that, when corroborated, genuinely indicate malice and may drive a
-# malicious verdict.
+# malicious verdict
 STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_DYNAMIC, B_EXFIL, B_SIGNATURE}
-# Behaviours that are extremely common in perfectly benign apps (reading a
-# device ID for analytics, restarting on boot, self-signed sideload certs).
-# They add supporting weight to a real strong behaviour but must NOT set the
-# score floor on their own -- otherwise every analytics-heavy app lands in
-# "suspicious". Scored as secondary contributions only (see _score_indicators).
 CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY}
 
 
 def _is_context(behavior: str, interception_present: bool) -> bool:
     """A behaviour is treated as benign 'context' (capped, never a driver)
-    unless a genuine malice discriminator is present.
-
-    SMS is the key case: reading/sending SMS is normal for messaging and OTP
-    apps (WhatsApp, Telegram, Signal all do it), so SMS only counts as a STRONG
-    driver when an interception/hiding marker (abortBroadcast, high-priority
-    receiver) proves fraudulent intent."""
+    unless a genuine malice discriminator is present"""
     if behavior in CONTEXT_BEHAVIORS:
         return True
     if behavior == B_SMS and not interception_present:
@@ -99,8 +78,8 @@ def _indicator(behavior, channel, weight, source):
 
 
 def _find_high_confidence_yara(yara_report: dict) -> list:
-    """High-confidence YARA matches convict outright (see the short-circuit in
-    build_verdict). Which rules count as 'high' is configuration, not code."""
+    """High-confidence YARA matches convict outright.
+     Which rules count as high is configuration, not code"""
     if yara_report.get("status") != "completed":
         return []
     return [m for m in yara_report.get("matches", []) if m.get("confidence") == "high"]
@@ -109,7 +88,7 @@ def _find_high_confidence_yara(yara_report: dict) -> list:
 def _signature_behavior(rule_name: str, tags: str) -> str:
     """Map a YARA rule to a behaviour when its name/tags hint at one, so a
     signature can corroborate heuristic evidence for the same behaviour.
-    Falls back to a generic 'known signature' behaviour otherwise."""
+    Falls back to a generic known signature behaviour otherwise"""
     hay = f"{rule_name} {tags}".lower()
     if "sms" in hay or "smish" in hay:
         return B_SMS
@@ -140,6 +119,7 @@ def _permission_behavior(short_perm: str):
 def _combo_behaviors(name: str) -> set:
     n = name.lower()
     behaviors = set()
+
     if "sms" in n:
         behaviors.add(B_SMS)
     if "persistence" in n or "boot" in n:
@@ -187,8 +167,6 @@ def _indicators_from_finding(finding: dict) -> list:
             out.append(_indicator(behavior, CH_STRUCTURE, CHANNEL_WEIGHTS[CH_STRUCTURE], name))
 
     elif ftype == "certificate_anomaly":
-        # Weight the "no certificate at all" case a bit higher than cosmetic
-        # anomalies like self-signing (which every sideloaded APK exhibits).
         weight = 0.25 if "No signing certificate" in name else CHANNEL_WEIGHTS[CH_CERT]
         out.append(_indicator(B_INTEGRITY, CH_CERT, weight, name))
 
@@ -204,8 +182,6 @@ def _indicators_from_finding(finding: dict) -> list:
         out.append(_indicator(behavior, CH_STRING, CHANNEL_WEIGHTS[CH_STRING], name))
 
     elif ftype == "sms_interception":
-        # The malice discriminator: this app doesn't just touch SMS, it HIDES
-        # it. This is what promotes SMS from benign context to a real driver.
         out.append(_indicator(B_SMS, CH_BEHAVIOR, CHANNEL_WEIGHTS[CH_BEHAVIOR], name))
 
     elif ftype == "obfuscation":
@@ -224,8 +200,10 @@ def _collect_indicators(yara_report: dict, heuristic_report: dict) -> list:
     if yara_report.get("status") == "completed":
         for match in yara_report.get("matches", []):
             confidence = match.get("confidence", "low")
+
             if confidence == "high":
-                continue  # handled by the short-circuit, not the blended score
+                continue
+
             rule = match.get("rule") or ""
             tags = " ".join(match.get("tags") or [])
             behavior = _signature_behavior(rule, tags)
@@ -244,41 +222,43 @@ def _collect_indicators(yara_report: dict, heuristic_report: dict) -> list:
 
 
 def _score_indicators(indicators: list, interception_present: bool = False):
-    """Corroboration-based fusion.
+    """Corroboration-based fusion
 
     Core rules:
       1. A behaviour becomes strong evidence only when independent channels
-         agree on it; a malicious verdict needs a corroborated STRONG behaviour.
-      2. Behaviours that benign apps routinely exhibit (fingerprinting, boot
-         persistence, and SMS *without* an interception marker) are capped as
-         'context' -- they support a real driver but never set the floor.
+         agree on it. A malicious verdict needs a corroborated strong behaviour
+      2. Behaviours that benign apps routinely exhibit are capped as
+         context, they support a real driver but never set the floor
       3. In the absence of a corroborated strong behaviour the score is the
-         single strongest (capped) behaviour, NOT a sum -- so an app with many
-         independent weak signals (a big legit app) doesn't creep upward."""
-    # behaviour -> {channel: best weight seen}. Same channel never stacks.
+         single strongest (capped) behaviour, NOT a sum, so an app with many
+         independent weak signals (a big legit app) doesn't creep upward"""
     behavior_channels = defaultdict(dict)
     evasion_present = False
 
     for ind in indicators:
         behavior = ind["behavior"]
+
         if behavior == B_EVASION:
             evasion_present = True
             continue
+
         channel, weight = ind["channel"], ind["weight"]
         if weight > behavior_channels[behavior].get(channel, 0.0):
             behavior_channels[behavior][channel] = weight
 
     behavior_scores = {}
     channel_counts = {}
+
     for behavior, channels in behavior_channels.items():
         raw = sum(channels.values())
         n = len(channels)
+
         if n >= 2:
             raw *= CORROBORATION_MULTIPLIER
         if n >= 3:
             raw *= TRIPLE_CHANNEL_BONUS
-        # Cap behaviours that lack a malice discriminator so mere capability
-        # (touching SMS, reading a device id) can't approach a conviction.
+
+        # Cap behaviours that lack a malice discriminator so mere capability can't approach a conviction
         cap = CONTEXT_CAP if _is_context(behavior, interception_present) else 1.0
         behavior_scores[behavior] = min(raw, cap)
         channel_counts[behavior] = n
@@ -302,27 +282,24 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         return 0.0, breakdown
 
     # A strong driver requires: a STRONG behaviour, corroborated by >=2
-    # channels, AND not demoted to context (SMS without interception).
+    # channels, AND not demoted to context
     corroborated_strong = [
         s for b, s in behavior_scores.items()
         if channel_counts[b] >= 2
-        and b in STRONG_BEHAVIORS
-        and not _is_context(b, interception_present)
+           and b in STRONG_BEHAVIORS
+           and not _is_context(b, interception_present)
     ]
 
     if corroborated_strong:
         # Real, corroborated malicious behaviour -> full range, driven by the
-        # strongest such behaviour plus a modest contribution from the rest.
+        # strongest such behaviour plus a modest contribution from the rest
         primary = max(corroborated_strong)
         overall = primary + SECONDARY_WEIGHT * (sum(behavior_scores.values()) - primary)
+
         if evasion_present:
             overall *= EVASION_AMPLIFIER
         breakdown["decision"] = "corroborated_strong_behavior"
     else:
-        # Nothing malicious is corroborated. Score = strongest single (capped)
-        # behaviour -- no additive stacking. A small bump only if the app is
-        # broadly suspicious across several behaviours. Hard-capped to the
-        # suspicious band: a review case at most, never a conviction.
         overall = max(behavior_scores.values())
         notable = [s for s in behavior_scores.values() if s >= CONTEXT_CAP]
         if len(notable) >= 3:
@@ -336,27 +313,29 @@ def _score_indicators(indicators: list, interception_present: bool = False):
 
 
 def _decide(yara_report: dict, heuristic_report: dict):
-    """Run the decision cascade.
-
-    Returns (verdict, threat_score, reason, decision_path, breakdown)."""
+    """Run the decision cascade """
     yara_available = yara_report.get("status") == "completed"
 
-    # --- Stage 1: high-confidence YARA short-circuit -----------------------
+    # High-confidence YARA short-circuit
     high_conf = _find_high_confidence_yara(yara_report)
+
     if high_conf:
         rules = sorted({m.get("rule", "unknown_rule") for m in high_conf})
         preview = ", ".join(rules[:3])
+
         if len(rules) > 3:
             preview += f", +{len(rules) - 3} more"
+
         reason = (
             f"High-confidence YARA signature matched ({preview}). "
             f"Known-malicious pattern -- convicted on signature alone; "
             f"corroboration scoring skipped."
         )
+
         return (VERDICT_MALICIOUS, 1.0, reason,
                 "yara_high_confidence_short_circuit", None)
 
-    # --- Stage 2: corroboration-based fusion -------------------------------
+    # Corroboration-based fusion
     interception_present = _interception_present(heuristic_report)
     threat_score, breakdown = _score_indicators(
         _collect_indicators(yara_report, heuristic_report),
@@ -382,7 +361,7 @@ def _decide(yara_report: dict, heuristic_report: dict):
     if not yara_available:
         reason = (
             "YARA scanning was unavailable for this job. Treat with caution "
-            "-- this is an incomplete scan, not a confirmed clean result."
+            ", this is an incomplete scan, not a confirmed clean result."
         )
         return VERDICT_SUSPICIOUS, threat_score, reason, "yara_unavailable", breakdown
 
@@ -401,8 +380,6 @@ def build_verdict(yara_report: dict, heuristic_report: dict) -> dict:
         "threat_score": round(threat_score, 2),
         "reason": reason,
         "decision_path": decision_path,
-        # Per-behaviour corroboration breakdown -- shows WHY a verdict was
-        # reached (which behaviours fired, on how many independent channels).
         "signal_breakdown": breakdown,
         "yara_summary": {
             "is_clean": yara_report.get("is_clean"),

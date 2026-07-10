@@ -27,28 +27,22 @@ public class JobRoutingService {
     }
 
     public Long createAndRouteJob(MultipartFile file, String sha256, String appName) throws IOException {
-        // 1. Save the file to disk (overwriting the old one if it exists)
         String path = storageService.saveFile(file, sha256 + ".apk");
 
-        // 2. Check if the job already exists in the DB (e.g., an ABORTED or FAILED job)
         Optional<AnalysisJob> existingJobOpt = analysisJobRepository.findFirstBySha256(sha256);
 
         AnalysisJob jobToProcess;
-        if (existingJobOpt.isPresent()) {
-            // Recyle the old row to prevent Unique Constraint crashes!
+        if (existingJobOpt.isPresent()) { // If already exists (ABORTED)
             jobToProcess = existingJobOpt.get();
-            jobToProcess.setStatus("PENDING"); // Move it back to pending
-            jobToProcess.setAppName(appName);  // Update the name just in case
-            jobToProcess.setYaraReport(null);  // Clear any old corrupted reports
+            jobToProcess.setStatus("PENDING");
+            jobToProcess.setAppName(appName);
+            jobToProcess.setYaraReport(null);
         } else {
-            // It's a completely new app
             jobToProcess = new AnalysisJob(sha256, appName, "PENDING");
         }
 
-        // 3. Save the recycled (or new) job
         jobToProcess = analysisJobRepository.save(jobToProcess);
 
-        // 4. Fire it off to RabbitMQ again
         queueProducer.sendJobToQueue(new AnalysisJobMessage(
                 jobToProcess.getJobId(),
                 sha256,
@@ -69,11 +63,10 @@ public class JobRoutingService {
 
     public void updateJobWithReport(Long jobId, Map<String, Object> yaraReport) {
         AnalysisJob job = analysisJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found"));
+                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found!"));
 
-        // FIX: Use trim() and equalsIgnoreCase() to prevent bypasses, and add a log!
         if (job.getStatus() != null && "ABORTED".equalsIgnoreCase(job.getStatus().trim())) {
-            System.out.println("Job " + jobId + " was cancelled by the user. Rejecting worker completion report.");
+            System.out.println("Job " + jobId + " was cancelled by the user. Rejecting worker completion report");
             return;
         }
 
@@ -85,9 +78,10 @@ public class JobRoutingService {
 
     public void updateJobStatus(Long jobId, String status) {
         AnalysisJob job = analysisJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found"));
+                .orElseThrow(() -> new IllegalArgumentException("AnalysisJob with ID " + jobId + " not found!"));
 
         job.setStatus(status);
+
         analysisJobRepository.save(job);
     }
 

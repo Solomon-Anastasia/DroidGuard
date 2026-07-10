@@ -47,15 +47,12 @@ class GatewayClient:
             response = requests.get(url, timeout=self.timeout)
 
             if response.status_code == 200:
-                # Clean up the string and force uppercase for safe matching
                 status_text = response.text.strip().strip('"').upper()
 
-                # Fallback: If it accidentally hit the JSON endpoint instead of the internal one
                 if "{" in status_text and "STATUS" in status_text:
                     import json
                     status_text = json.loads(response.text).get("status", "UNKNOWN").upper()
 
-                # logger.info(f"[GatewayClient] Gateway reports status for Job {job_id} is: {status_text}")
                 return status_text
             else:
                 logger.warning(f"[GatewayClient] Status check failed: HTTP {response.status_code}")
@@ -64,5 +61,6 @@ class GatewayClient:
         except Exception as e:
             logger.error(f"[GatewayClient] Exception during status check: {str(e)}")
             return "UNKNOWN"
+
 
 gateway_client = GatewayClient()
