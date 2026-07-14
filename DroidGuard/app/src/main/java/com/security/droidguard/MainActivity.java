@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 adapter = new AppListAdapter(appsToShow, app -> {
 
                     new MaterialAlertDialogBuilder(MainActivity.this)
-                            .setTitle("Scan Application?")
+                            .setTitle("Scan application?")
                             .setMessage("Do you want to send " + app.getAppName() + " to the Gateway for malware analysis?")
                             .setPositiveButton("Start scan", (dialog, which) -> {
                                 ScanManager.getInstance().startScan(app.getApkPath(), app.getAppName());

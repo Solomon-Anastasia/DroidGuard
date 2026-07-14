@@ -44,7 +44,7 @@ DEBUG_CERT_MARKERS = ("android debug", "androiddebugkey", "debug")
 SUSPICIOUS_VALIDITY_DAYS = 36_500
 
 # DEX API-call detection
-# Each category fires if ANY of its APIs is actually *called* in the bytecode
+# Each category fires if any of its api is called in the bytecode
 SUSPICIOUS_API_CATEGORIES = [
     {
         "name": "Dynamic code loading",
@@ -111,17 +111,18 @@ SUSPICIOUS_API_CATEGORIES = [
     },
 ]
 
-# String / URL analysis
+# URL analysis
 # Flag the two patterns that actually correlate with malice
 URL_RE = re.compile(r"https?://[^\s\"'<>\\)]+", re.IGNORECASE)
 IP_URL_RE = re.compile(r"^https?://\d{1,3}(?:\.\d{1,3}){3}(?:[:/]|$)", re.IGNORECASE)
+# Quote, html tag, url parameter, eof
 PAYLOAD_URL_RE = re.compile(r"\.(?:apk|dex|jar)(?:[?#\"'<>]|$)", re.IGNORECASE)
 MAX_URL_LEN = 200
 MAX_URL_SAMPLES = 5
 
 # Packer / obfuscation detection
-# Known commercial/free packer and protector class-name signatures.
-# Presence of these strongly implies the DEX is packed.
+# Known commercial/free packer and protector class-name signatures
+# Presence of these strongly implies the DEX is packed
 KNOWN_PACKER_SIGNATURES = {
     r"Ljiagu/": "360 Jiagu",
     r"Lcom/qihoo/util/": "360",
@@ -349,6 +350,8 @@ def _iter_referenced_strings(dx):
         except Exception:
             continue
         if value:
+            if isinstance(value, bytes):
+                value = value.decode('utf-8', errors='ignore')
             yield value
 
 
@@ -497,7 +500,7 @@ def analyze(apk) -> dict:
     findings.extend(_check_exported_components(apk))
     findings.extend(_check_certificates(apk))
 
-    # All DEX-based analysis shares one Analysis object. Wrapped defensively so
+    # All DEX-based analysis shares one analysis object. Wrapped defensively so
     # a parsing failure on packed/corrupt bytecode still leaves the manifest
     # findings intact rather than failing the whole job
     try:

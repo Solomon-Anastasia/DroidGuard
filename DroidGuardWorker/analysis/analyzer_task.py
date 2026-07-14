@@ -14,26 +14,26 @@ def run_heavy_analysis(apk_path: str, job_id: str, result_queue: multiprocessing
     )
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Subprocess started for Job {job_id}. Target: {apk_path}")
+    logger.info(f"Subprocess started for job {job_id}. Target: {apk_path}")
 
     try:
-        logger.info(f"Extracting APK for Job {job_id}...")
+        logger.info(f"Extracting APK for job {job_id}...")
         extracted_dir, parsed_apk = extract_apk(apk_path, job_id)
 
-        logger.info(f"Running YARA scan for Job {job_id}...")
+        logger.info(f"Running YARA scan for job {job_id}...")
         yara_report = scan_directory(extracted_dir)
 
-        logger.info(f"Running Androguard heuristics for Job {job_id}...")
+        logger.info(f"Running Androguard heuristics for job {job_id}...")
         heuristic_report = manifest_analyzer.analyze(parsed_apk)
 
-        logger.info(f"Compiling final verdict for Job {job_id}...")
+        logger.info(f"Compiling final verdict for job {job_id}...")
         report_dict = verdict.build_verdict(yara_report, heuristic_report)
 
         result_queue.put({
             "status": "success",
             "report": report_dict
         })
-        logger.info(f"Subprocess finished analysis for Job {job_id} successfully")
+        logger.info(f"Subprocess finished analysis for job {job_id} successfully")
 
     except Exception as e:
         logger.error(f"Critical failure in subprocess for job {job_id}: {str(e)}")

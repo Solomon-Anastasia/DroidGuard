@@ -82,7 +82,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
         holder.btnCancelScan.setOnClickListener(v -> {
             new MaterialAlertDialogBuilder(v.getContext())
-                    .setTitle("Cancel Analysis?")
+                    .setTitle("Cancel analysis?")
                     .setMessage("Are you sure you want to abort the malware scan for " + job.getAppName() + "?")
                     .setPositiveButton("Abort scan", (dialog, which) -> {
                         ScanManager.getInstance().abortActiveScan(job.getAppName());

@@ -1,8 +1,9 @@
 import json
 import pika
 import logging
-import time
+import queue
 import multiprocessing
+import traceback
 from analysis.analyzer_task import run_heavy_analysis
 
 from config import MQ_HOST, MQ_PORT, MQ_QUEUE, MQ_USER, MQ_PASSWORD
@@ -31,65 +32,70 @@ def process_analysis_job(ch, method, properties, body):
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
-        # Prepare the Subprocess
         result_queue = multiprocessing.Queue()
         analysis_process = multiprocessing.Process(
             target=run_heavy_analysis,
             args=(apk_path, job_id, result_queue)
         )
 
-        # Start the isolated process
         analysis_process.start()
 
         final_payload = None
-
-        # The polling loop
         while analysis_process.is_alive():
-            time.sleep(3)
-
             current_status = gateway_client.check_job_status(job_id)
             if current_status == "ABORTED":
-                logger.warning(f"Job {job_id} aborted by user mid-analysis! Killing Subprocess")
-
+                logger.warning(f"Job {job_id} aborted by user mid-analysis! Killing subprocess")
                 analysis_process.terminate()
                 analysis_process.join()
-
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
 
-        # Process finished naturally
-        analysis_process.join()
+            try:
+                final_payload = result_queue.get(timeout=3)
+                break
+            except queue.Empty:
+                continue
 
-        # Extract the results from the queue
-        if not result_queue.empty():
-            final_payload = result_queue.get()
+        logger.info(f"[CONSUMER] Analysis process for job {job_id} finished or payload received. Joining...")
+        analysis_process.join()
+        logger.info(f"[CONSUMER] Process joined successfully for job {job_id}")
+
+        if final_payload is None:
+            try:
+                final_payload = result_queue.get(timeout=1)
+            except queue.Empty:
+                pass
 
         # Handle the results
         if final_payload and final_payload.get("status") == "success":
             report_dict = final_payload.get("report")
 
-            logger.info(f"Sending final results to Gateway for Job {job_id}...")
+            logger.info(f"[CONSUMER] Analysis succeeded. Sending final results to Gateway for job {job_id}...")
             success = gateway_client.send_analysis_report(job_id, report_dict)
 
             if success:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 logger.info(f"[CONSUMER] Job {job_id} completed and acknowledged")
             else:
-                logger.warning(f"Failed to update Gateway. Re-queuing Job {job_id}")
+                logger.warning(f"[CONSUMER] Failed to update Gateway. Re-queuing job {job_id}")
                 ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
         else:
-            error_msg = final_payload.get("error_message") if final_payload else "Unknown Queue Error"
-            logger.error(f"Analysis failed internally for job {job_id}: {error_msg}")
+            if final_payload:
+                error_msg = final_payload.get("error_message", "Unknown error")
+            else:
+                error_msg = "No result in queue after process finished"
 
-            # Do not requeue if the APK itself caused a fatal crash, just acknowledge to drop it
+            logger.error(f"[CONSUMER] Analysis failed internally for job {job_id}: {error_msg}")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        logger.error(f"Critical error in main consumer for job {job_id}: {str(e)}")
+        logger.error(f"[CONSUMER] Critical error in main consumer for job {job_id}: {str(e)}")
+        logger.error(traceback.format_exc())
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     finally:
+        logger.info(f"[CONSUMER] Cleaning up temporary directory for job {job_id}")
         cleanup_temp_dir(job_id)
 
 
@@ -124,8 +130,8 @@ def start_consuming():
         channel.start_consuming()
 
     except pika.exceptions.AMQPConnectionError:
-        logger.error(f"Failed to connect to RabbitMQ at {MQ_HOST}:{MQ_PORT}. Is it running?")
+        logger.error(f"[CONSUMER] Failed to connect to RabbitMQ at {MQ_HOST}:{MQ_PORT}. Is it running?")
     except KeyboardInterrupt:
-        logger.info("Worker stopped by user")
+        logger.info("[CONSUMER] Worker stopped by user")
         if 'connection' in locals() and connection.is_open:
             connection.close()
