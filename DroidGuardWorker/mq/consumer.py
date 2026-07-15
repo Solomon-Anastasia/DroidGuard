@@ -87,11 +87,17 @@ def process_analysis_job(ch, method, properties, body):
                 error_msg = "No result in queue after process finished"
 
             logger.error(f"[CONSUMER] Analysis failed internally for job {job_id}: {error_msg}")
+            gateway_client.report_job_failed(job_id, error_msg)
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
         logger.error(f"[CONSUMER] Critical error in main consumer for job {job_id}: {str(e)}")
         logger.error(traceback.format_exc())
+
+        gateway_client.report_job_failed(job_id, str(e))
+        if job_id != "UNKNOWN":
+            gateway_client.report_job_failed(job_id, str(e))
+            
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     finally:

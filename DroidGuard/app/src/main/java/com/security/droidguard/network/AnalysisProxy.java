@@ -143,6 +143,10 @@ public class AnalysisProxy {
                     postError(callback, cancelled, "Analysis worker failed to process the APK!");
                     return;
 
+                } else if ("ABORTED".equalsIgnoreCase(currentStatus)) {
+                    Log.d(TAG, "Job was aborted server-side");
+                    postError(callback, cancelled, "Scan was cancelled");
+                    return;
                 } else {
                     // Job is still PENDING
                     attempts++;

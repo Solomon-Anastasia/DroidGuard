@@ -1,0 +1,6 @@
+tmp/
+debug/
+
+.venv/
+
+.idea/

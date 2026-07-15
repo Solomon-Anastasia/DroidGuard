@@ -2,6 +2,7 @@ package com.security.droidguard.gateway.repository;
 
 import com.security.droidguard.gateway.model.entity.AnalysisJob;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 

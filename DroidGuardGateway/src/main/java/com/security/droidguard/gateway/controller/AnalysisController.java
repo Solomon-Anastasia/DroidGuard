@@ -91,6 +91,19 @@ public class AnalysisController {
         ));
     }
 
+    @PostMapping("/status/failed")
+    public ResponseEntity<?> reportFailed(@RequestBody WorkerCallbackRequest request) {
+        logger.info("Failed for job ID: {}", request.getJobId());
+        try {
+            jobRoutingService.updateJobStatus(request.getJobId(), "FAILED");
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Failed to update job {}", request.getJobId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping("/internal/complete")
     public ResponseEntity<Void> receiveWorkerReport(@RequestBody WorkerCallbackRequest request) {
         logger.info("Received analysis completion report for job ID: {}", request.getJobId());

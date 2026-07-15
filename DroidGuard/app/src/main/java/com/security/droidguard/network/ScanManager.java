@@ -89,10 +89,7 @@ public class ScanManager {
                                 recoveringJob.setComplete(true);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-                                // Clean up the stuck pending record on failure
-                                Executors.newSingleThreadExecutor().execute(() -> {
-                                    database.scanHistoryDao().deleteByAppName(record.appName);
-                                });
+                                cleanupFailedScan(record.appName);
                             }
                         });
                         activeHandles.put(record.appName, handle);
@@ -185,14 +182,28 @@ public class ScanManager {
                 newJob.setComplete(true);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-                // Clean up the stuck pending record on failure
-                Executors.newSingleThreadExecutor().execute(() -> {
-                    database.scanHistoryDao().deleteByAppName(appName);
-                });
+                cleanupFailedScan(appName);
             }
         });
 
         activeHandles.put(appName, handle);
+    }
+
+    private void cleanupFailedScan(String appName) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            // Remove PENDING record that was stuck
+            database.scanHistoryDao().deleteByAppName(appName);
+
+            // Insert FAILED record
+            LocalScanRecord record = new LocalScanRecord(
+                    appName,
+                    "com.security.droidguard",
+                    "{}",
+                    "FAILED",
+                    System.currentTimeMillis()
+            );
+            database.scanHistoryDao().insert(record);
+        });
     }
 
     public void abortActiveScan(String appName) {
@@ -224,6 +235,13 @@ public class ScanManager {
     }
 
     public void deleteScanHistory(Context context, String appNameToDelete) {
+        // Currently actively scanning
+        if (activeHandles.containsKey(appNameToDelete)) {
+            abortActiveScan(appNameToDelete);
+            return;
+        }
+
+        // Just a normal completed history record
         Executors.newSingleThreadExecutor().execute(() -> {
             AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
 

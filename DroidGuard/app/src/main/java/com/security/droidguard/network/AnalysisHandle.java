@@ -3,7 +3,7 @@ package com.security.droidguard.network;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class AnalysisHandle {
-    private String jobId;
+    private volatile String jobId;
     private final AtomicBoolean cancelled;
 
     AnalysisHandle(AtomicBoolean cancelled) {
