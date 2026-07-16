@@ -106,7 +106,7 @@ def _initialize_rules():
 
 COMPILED_RULES = _initialize_rules()
 
-VALID_EXTENSIONS = {".dex", ".so", ".xml", ".smali", ".js", ".json", ".html"}
+VALID_EXTENSIONS = {".dex", ".so", ".xml", ".js", ".json", ".html"}
 
 
 def _extract_string_matches(match) -> list:

@@ -32,7 +32,7 @@ def extract_apk(apk_path: str, job_id: str):
         return job_dir, parsed_apk
 
     except zipfile.BadZipFile:
-        logger.error(f"Job {job_id} failed: File at {apk_path} is not a valid ZIP/APK.")
+        logger.error(f"Job {job_id} failed: File at {apk_path} is not a valid ZIP/APK")
         raise
     except Exception as e:
         logger.error(f"Failed to extract APK {apk_path}: {str(e)}")

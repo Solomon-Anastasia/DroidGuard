@@ -66,7 +66,7 @@ public class AnalysisProxy {
                     // Tell the UI/Manager the Job ID so it can save it to Room
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
 
-                    startPolling(jobId, callback, cancelled);
+                    startPolling(jobId, System.currentTimeMillis(), callback, cancelled);
                 } else {
                     Log.d(TAG, "New file detected. Initiating multipart upload...");
 
@@ -81,7 +81,7 @@ public class AnalysisProxy {
                     // Tell the UI/Manager the Job ID so it can save it to Room
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
 
-                    startPolling(jobId, callback, cancelled);
+                    startPolling(jobId, System.currentTimeMillis(), callback, cancelled);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Analysis pipeline failed", e);
@@ -92,7 +92,7 @@ public class AnalysisProxy {
         return handle;
     }
 
-    public AnalysisHandle resumePolling(String jobId, String appName, AnalysisCallback callback) {
+    public AnalysisHandle resumePolling(String jobId, long originalStartTime, AnalysisCallback callback) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AnalysisHandle handle = new AnalysisHandle(cancelled);
         handle.setJobId(jobId);
@@ -100,7 +100,8 @@ public class AnalysisProxy {
         executor.execute(() -> {
             try {
                 Log.d(TAG, "Resuming polling for recovered job ID: " + jobId);
-                startPolling(jobId, callback, cancelled);
+
+                startPolling(jobId, originalStartTime, callback, cancelled);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to resume polling", e);
                 postError(callback, cancelled, "Failed to resume: " + e.getMessage());
@@ -110,14 +111,14 @@ public class AnalysisProxy {
         return handle;
     }
 
-    private void startPolling(String jobId, AnalysisCallback callback, AtomicBoolean cancelled) throws Exception {
+    private void startPolling(String jobId, long startTime, AnalysisCallback callback, AtomicBoolean cancelled) throws Exception {
         boolean completed = false;
-        int maxAttempts = 240; // 240 attempts * 5 seconds = 20 minutes max timeout
-        int attempts = 0;
+
+        long maxTimeoutMillis = 20 * 60 * 1_000; // 20 min
 
         Log.d(TAG, "Started polling API Gateway for job ID: " + jobId);
 
-        while (!completed && attempts < maxAttempts) {
+        while (!completed && (System.currentTimeMillis() - startTime) < maxTimeoutMillis) {
             if (cancelled.get()) {
                 Log.d(TAG, "Polling cancelled by caller for job ID: " + jobId);
                 return;
@@ -147,18 +148,23 @@ public class AnalysisProxy {
                     Log.d(TAG, "Job was aborted server-side");
                     postError(callback, cancelled, "Scan was cancelled");
                     return;
+
                 } else {
-                    // Job is still PENDING
-                    attempts++;
-                    postProgress(callback, cancelled, "Analyzing... (" + attempts + "/" + maxAttempts + ")");
+                    // Job is still PENDING. Calculate elapsed time.
+                    long elapsedMillis = System.currentTimeMillis() - startTime;
+                    long seconds = (elapsedMillis / 1000) % 60;
+                    long minutes = (elapsedMillis / (1000 * 60)) % 60;
+
+                    // Format as MM:SS
+                    String timeFormatted = String.format("%02d:%02d", minutes, seconds);
+
+                    postProgress(callback, cancelled, "Analyzing... " + timeFormatted);
                 }
 
             } catch (Exception e) {
-                Log.w(TAG, "Network blip during polling. Will retry in 5s...", e);
-                attempts++;
+                Log.w(TAG, "Network fail during polling. Will retry in 5s...", e);
             }
 
-            // Sleep for 5 seconds before the next poll
             if (cancelled.get()) return;
 
             try {
@@ -205,9 +211,5 @@ public class AnalysisProxy {
         mainHandler.post(() -> {
             if (!cancelled.get()) callback.onError(error);
         });
-    }
-
-    public void shutdown() {
-        executor.shutdownNow();
     }
 }

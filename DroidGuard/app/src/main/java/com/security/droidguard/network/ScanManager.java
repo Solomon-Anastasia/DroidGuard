@@ -49,11 +49,11 @@ public class ScanManager {
 
                 for (LocalScanRecord record : history) {
                     if ("PENDING".equals(record.verdict) && record.jobId != null) {
-                        // RECOVERY MODE: The app crashed while this was scanning
+                        // Recovery mode: The app crashed while this was scanning
                         ScanJob recoveringJob = new ScanJob(record.appName, "Recovering scan...");
                         currentScans.add(recoveringJob);
 
-                        AnalysisHandle handle = analysisProxy.resumePolling(record.jobId, record.appName, new AnalysisCallback() {
+                        AnalysisHandle handle = analysisProxy.resumePolling(record.jobId, record.scanTimestamp, new AnalysisCallback() {
                             @Override
                             public void onProgress(String status) {
                                 recoveringJob.setStatusLog(status);
@@ -71,10 +71,12 @@ public class ScanManager {
                                     String finalVerdict = "safe";
                                     try {
                                         JSONObject json = new JSONObject(jsonReport);
-                                        if (json.has("verdict")) finalVerdict = json.getString("verdict");
-                                    } catch (Exception e) { e.printStackTrace(); }
+                                        if (json.has("verdict"))
+                                            finalVerdict = json.getString("verdict");
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
 
-                                    // Erase the PENDING record, insert the COMPLETED record
                                     database.scanHistoryDao().deleteByAppName(record.appName);
                                     LocalScanRecord newRecord = new LocalScanRecord(
                                             record.appName, "com.security.droidguard", jsonReport, finalVerdict, System.currentTimeMillis()
@@ -94,7 +96,7 @@ public class ScanManager {
                         });
                         activeHandles.put(record.appName, handle);
                     } else {
-                        // NORMAL MODE: It's a completed job, load it to the UI
+                        // Normal mode: It's a completed job, load it to the UI
                         ScanJob cachedJob = new ScanJob(record.appName, "Completed! View report");
                         cachedJob.setComplete(true);
                         cachedJob.setJsonReport(record.jsonReport);
@@ -124,11 +126,9 @@ public class ScanManager {
         AnalysisHandle handle = analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
             @Override
             public void onProgress(String status) {
-                // Intercept the Job ID to save it to Room
                 if (status.startsWith("JOB_ID_ATTACHED:")) {
                     String savedJobId = status.split(":")[1];
                     Executors.newSingleThreadExecutor().execute(() -> {
-                        // Clear any old failed attempts first
                         database.scanHistoryDao().deleteByAppName(appName);
 
                         LocalScanRecord record = new LocalScanRecord(
@@ -162,7 +162,6 @@ public class ScanManager {
                         System.out.println(e.getMessage());
                     }
 
-                    // Erase the PENDING record before saving the final one
                     database.scanHistoryDao().deleteByAppName(appName);
 
                     LocalScanRecord record = new LocalScanRecord(
@@ -225,7 +224,6 @@ public class ScanManager {
                 currentScans.remove(i);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-                // Erase the aborted scan from Room
                 Executors.newSingleThreadExecutor().execute(() -> {
                     database.scanHistoryDao().deleteByAppName(appName);
                 });
@@ -234,14 +232,16 @@ public class ScanManager {
         }
     }
 
-    public void deleteScanHistory(Context context, String appNameToDelete) {
-        // Currently actively scanning
-        if (activeHandles.containsKey(appNameToDelete)) {
+    public void deleteScanHistory(Context context, String appNameToDelete, boolean isComplete) {
+        if (!isComplete && activeHandles.containsKey(appNameToDelete)) {
             abortActiveScan(appNameToDelete);
             return;
         }
 
-        // Just a normal completed history record
+        if (isComplete) {
+            activeHandles.remove(appNameToDelete);
+        }
+
         Executors.newSingleThreadExecutor().execute(() -> {
             AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
 

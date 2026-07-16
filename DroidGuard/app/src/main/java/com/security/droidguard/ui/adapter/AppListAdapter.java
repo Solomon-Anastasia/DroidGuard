@@ -13,15 +13,37 @@ import com.security.droidguard.R;
 import com.security.droidguard.models.InstalledApp;
 import com.security.droidguard.ui.OnAppClickListener;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewHolder> {
-    private final List<InstalledApp> appList;
+
+    private List<InstalledApp> appList;
+    private final List<InstalledApp> originalAppList;
     private final OnAppClickListener listener;
 
     public AppListAdapter(List<InstalledApp> appList, OnAppClickListener listener) {
         this.appList = appList;
+        this.originalAppList = new ArrayList<>(appList);
         this.listener = listener;
+    }
+
+    public void filter(String text) {
+        List<InstalledApp> filteredList = new ArrayList<>();
+
+        if (text == null || text.trim().isEmpty()) {
+            filteredList.addAll(originalAppList);
+        } else {
+            String filterPattern = text.toLowerCase().trim();
+            for (InstalledApp app : originalAppList) {
+                if (app.getAppName().toLowerCase().contains(filterPattern)) {
+                    filteredList.add(app);
+                }
+            }
+        }
+
+        this.appList = filteredList;
+        notifyDataSetChanged();
     }
 
     @NonNull

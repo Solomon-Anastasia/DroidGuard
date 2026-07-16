@@ -20,8 +20,9 @@ public class ApkExtractor {
 
         for (ApplicationInfo appInfo : packages) {
             boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+            boolean isUpdatedSystemApp = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
 
-            if (!isSystemApp && !appInfo.packageName.equals(myPackageName)) {
+            if ((!isSystemApp || isUpdatedSystemApp) && !appInfo.packageName.equals(myPackageName)) {
                 String appName = pm.getApplicationLabel(appInfo).toString();
                 String packageName = appInfo.packageName;
                 String apkPath = appInfo.publicSourceDir;

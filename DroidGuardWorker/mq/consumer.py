@@ -52,9 +52,11 @@ def process_analysis_job(ch, method, properties, body):
 
             try:
                 final_payload = result_queue.get(timeout=3)
-                break
             except queue.Empty:
                 continue
+            except Exception as e:
+                logger.error(f"Unexpected error reading from queue: {e}")
+                break
 
         logger.info(f"[CONSUMER] Analysis process for job {job_id} finished or payload received. Joining...")
         analysis_process.join()
@@ -97,7 +99,7 @@ def process_analysis_job(ch, method, properties, body):
         gateway_client.report_job_failed(job_id, str(e))
         if job_id != "UNKNOWN":
             gateway_client.report_job_failed(job_id, str(e))
-            
+
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
     finally:

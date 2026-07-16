@@ -72,7 +72,11 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                     .setTitle("Delete record?")
                     .setMessage("Remove the scan history for " + job.getAppName() + "?")
                     .setPositiveButton("Delete", (dialog, which) -> {
-                        ScanManager.getInstance().deleteScanHistory(v.getContext(), job.getAppName());
+                        ScanManager.getInstance().deleteScanHistory(
+                                v.getContext(),
+                                job.getAppName(),
+                                job.isComplete()
+                        );
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
