@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <style name="Base.Theme.DroidGuard" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/security_primary</item>
         <item name="colorSecondary">@color/security_secondary</item>
@@ -8,6 +10,7 @@
         <item name="colorSurface">@color/security_surface</item>
 
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
 
     </style>
 </resources>

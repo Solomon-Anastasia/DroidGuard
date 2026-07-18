@@ -45,12 +45,7 @@ class GatewayClient:
             response = requests.get(url, timeout=self.timeout)
 
             if response.status_code == 200:
-                status_text = response.text.strip().strip('"').upper()
-
-                if "{" in status_text and "STATUS" in status_text:
-                    status_text = json.loads(response.text).get("status", "UNKNOWN").upper()
-
-                return status_text
+                return response.text.strip().strip('"').upper()
             else:
                 logger.warning(f"[GatewayClient] Status check failed: HTTP {response.status_code}")
                 return "UNKNOWN"

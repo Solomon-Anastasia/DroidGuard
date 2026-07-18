@@ -1,20 +1,17 @@
 package com.security.droidguard.ui.activity;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.security.droidguard.R;
-import com.security.droidguard.models.ScanJob;
 import com.security.droidguard.network.ScanManager;
 import com.security.droidguard.ui.adapter.ProgressAdapter;
-
-import java.util.List;
 
 public class ProgressActivity extends AppCompatActivity {
     private MaterialToolbar toolbar;
@@ -26,7 +23,6 @@ public class ProgressActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_progress);
 
-        // Setup toolbar
         toolbar = findViewById(R.id.progressToolbar);
         setSupportActionBar(toolbar);
 
@@ -43,9 +39,17 @@ public class ProgressActivity extends AppCompatActivity {
         adapter = new ProgressAdapter();
         recyclerActiveScans.setAdapter(adapter);
 
-        // Observe the live data stream from the background ScanManager
         ScanManager.getInstance().getActiveScans().observe(this, scanJobs -> {
             adapter.updateData(scanJobs);
         });
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        if (adapter != null) {
+            adapter.refresh();
+        }
     }
 }

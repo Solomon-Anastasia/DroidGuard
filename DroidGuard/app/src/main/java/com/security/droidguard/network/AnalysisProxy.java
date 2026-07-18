@@ -1,29 +1,45 @@
 package com.security.droidguard.network;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.security.droidguard.BuildConfig;
+import com.security.droidguard.R;
 import com.security.droidguard.utils.HashUtils;
 
 import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 public class AnalysisProxy {
     private static final String TAG = "AnalysisProxy";
     private static final int MAX_CONCURRENT_ANALYSES = 10;
-
     private final ApiClient apiClient;
     private final Handler mainHandler;
     private final ExecutorService executor;
+    private final Context context;
+    private final OkHttpClient webSocketClient;
+    private static final String WS_BASE_URL = BuildConfig.WS_BASE_URL;
 
-    public AnalysisProxy() {
+    public AnalysisProxy(Context context) {
+        this.context = context;
         this.apiClient = new ApiClient();
         this.mainHandler = new Handler(Looper.getMainLooper());
         this.executor = Executors.newFixedThreadPool(MAX_CONCURRENT_ANALYSES);
+        this.webSocketClient = new OkHttpClient.Builder()
+                .pingInterval(25, TimeUnit.SECONDS)
+                .build();
     }
 
     public AnalysisHandle startAnalysis(String apkPath, String appName, AnalysisCallback callback) {
@@ -58,15 +74,15 @@ public class AnalysisProxy {
 
                     postSuccess(callback, cancelled, cachedReport);
                 } else if ("PENDING".equals(state)) {
-                    Log.d(TAG, "Job already in RabbitMQ. Attaching to existing polling queue");
+                    Log.d(TAG, "Job already scanning. Attaching to WebSocket feed.");
 
                     String jobId = checkJson.getString("jobId");
                     handle.setJobId(jobId);
 
-                    // Tell the UI/Manager the Job ID so it can save it to Room
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
 
-                    startPolling(jobId, System.currentTimeMillis(), callback, cancelled);
+                    // NEW: Jump to WebSocket listener instead of HTTP polling
+                    startWebSocketListening(jobId, System.currentTimeMillis(), callback, cancelled);
                 } else {
                     Log.d(TAG, "New file detected. Initiating multipart upload...");
 
@@ -78,10 +94,9 @@ public class AnalysisProxy {
 
                     handle.setJobId(jobId);
 
-                    // Tell the UI/Manager the Job ID so it can save it to Room
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
 
-                    startPolling(jobId, System.currentTimeMillis(), callback, cancelled);
+                    startWebSocketListening(jobId, System.currentTimeMillis(), callback, cancelled);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Analysis pipeline failed", e);
@@ -98,86 +113,101 @@ public class AnalysisProxy {
         handle.setJobId(jobId);
 
         executor.execute(() -> {
-            try {
-                Log.d(TAG, "Resuming polling for recovered job ID: " + jobId);
-
-                startPolling(jobId, originalStartTime, callback, cancelled);
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to resume polling", e);
-                postError(callback, cancelled, "Failed to resume: " + e.getMessage());
-            }
+            Log.d(TAG, "Resuming connection for recovered job ID: " + jobId);
+            startWebSocketListening(jobId, originalStartTime, callback, cancelled);
         });
 
         return handle;
     }
 
-    private void startPolling(String jobId, long startTime, AnalysisCallback callback, AtomicBoolean cancelled) throws Exception {
-        boolean completed = false;
+    private void startWebSocketListening(String jobId, long startTime, AnalysisCallback callback, AtomicBoolean cancelled) {
+        try {
+            String statusResponseStr = apiClient.pollStatus(jobId);
+            JSONObject statusJson = new JSONObject(statusResponseStr);
+            String currentStatus = statusJson.getString("status");
 
-        long maxTimeoutMillis = 20 * 60 * 1_000; // 20 min
-
-        Log.d(TAG, "Started polling API Gateway for job ID: " + jobId);
-
-        while (!completed && (System.currentTimeMillis() - startTime) < maxTimeoutMillis) {
-            if (cancelled.get()) {
-                Log.d(TAG, "Polling cancelled by caller for job ID: " + jobId);
+            if ("COMPLETED".equalsIgnoreCase(currentStatus) || "FAILED".equalsIgnoreCase(currentStatus) || "ABORTED".equalsIgnoreCase(currentStatus)) {
+                Log.d(TAG, "Job already finished while app was disconnected.");
+                processServerResponse(statusJson, callback, cancelled);
                 return;
             }
-
-            try {
-                String statusResponseStr = apiClient.pollStatus(jobId);
-                JSONObject statusJson = new JSONObject(statusResponseStr);
-                String currentStatus = statusJson.getString("status");
-
-                if ("COMPLETED".equalsIgnoreCase(currentStatus)) {
-                    completed = true;
-
-                    JSONObject reportObj = statusJson.optJSONObject("yaraReport");
-                    String report = (reportObj != null) ? reportObj.toString() : "{}";
-
-                    Log.d(TAG, "Analysis worker finished job");
-                    postSuccess(callback, cancelled, report);
-                    return;
-
-                } else if ("FAILED".equalsIgnoreCase(currentStatus)) {
-                    Log.e(TAG, "Analysis worker failed processing the APK!");
-                    postError(callback, cancelled, "Analysis worker failed to process the APK!");
-                    return;
-
-                } else if ("ABORTED".equalsIgnoreCase(currentStatus)) {
-                    Log.d(TAG, "Job was aborted server-side");
-                    postError(callback, cancelled, "Scan was cancelled");
-                    return;
-
-                } else {
-                    // Job is still PENDING. Calculate elapsed time.
-                    long elapsedMillis = System.currentTimeMillis() - startTime;
-                    long seconds = (elapsedMillis / 1000) % 60;
-                    long minutes = (elapsedMillis / (1000 * 60)) % 60;
-
-                    // Format as MM:SS
-                    String timeFormatted = String.format("%02d:%02d", minutes, seconds);
-
-                    postProgress(callback, cancelled, "Analyzing... " + timeFormatted);
-                }
-
-            } catch (Exception e) {
-                Log.w(TAG, "Network fail during polling. Will retry in 5s...", e);
-            }
-
-            if (cancelled.get()) return;
-
-            try {
-                Thread.sleep(5_000);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                Log.d(TAG, "Polling interrupted for job ID: " + jobId);
-                return;
-            }
+        } catch (Exception e) {
+            Log.w(TAG, "Initial status check failed, proceeding to WebSocket connection...");
         }
 
-        if (!completed) {
-            postError(callback, cancelled, "Polling timed out while waiting for the analysis worker");
+        AtomicBoolean serverResponded = new AtomicBoolean(false);
+
+        executor.execute(() -> {
+            while (!serverResponded.get() && !cancelled.get()) {
+                long elapsedMillis = System.currentTimeMillis() - startTime;
+                long seconds = (elapsedMillis / 1_000) % 60;
+                long minutes = (elapsedMillis / (1_000 * 60)) % 60;
+                String timeFormatted = String.format("%02d:%02d", minutes, seconds);
+
+                postProgress(callback, cancelled, context.getString(R.string.status_analyzing_time, timeFormatted));
+
+                try {
+                    Thread.sleep(1_000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+
+        Request request = new Request.Builder()
+                .url(WS_BASE_URL + jobId)
+                .build();
+
+        webSocketClient.newWebSocket(request, new WebSocketListener() {
+            @Override
+            public void onOpen(WebSocket webSocket, Response response) {
+                Log.d(TAG, "WebSocket connected for Job ID: " + jobId);
+            }
+
+            @Override
+            public void onMessage(WebSocket webSocket, String text) {
+                Log.d(TAG, "WebSocket received payload: " + text);
+                serverResponded.set(true);
+
+                try {
+                    JSONObject json = new JSONObject(text);
+                    processServerResponse(json, callback, cancelled);
+                } catch (Exception e) {
+                    postError(callback, cancelled, "Failed to parse server response");
+                }
+
+                webSocket.close(1000, "Received Final Report");
+            }
+
+            @Override
+            public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+                Log.w(TAG, "WebSocket dropped, attempting to reconnect", t);
+                if (cancelled.get()) return;
+
+                startWebSocketListening(jobId, startTime, callback, cancelled);
+            }
+
+            @Override
+            public void onClosed(WebSocket webSocket, int code, String reason) {
+                serverResponded.set(true);
+            }
+        });
+    }
+
+    private void processServerResponse(JSONObject json, AnalysisCallback callback, AtomicBoolean cancelled) {
+        String status = json.optString("status");
+
+        if ("COMPLETED".equalsIgnoreCase(status)) {
+            JSONObject reportObj = json.optJSONObject("yaraReport");
+            String reportStr = (reportObj != null) ? reportObj.toString() : "{}";
+            postSuccess(callback, cancelled, reportStr);
+
+        } else if ("FAILED".equalsIgnoreCase(status)) {
+            postError(callback, cancelled, "Analysis worker failed to process the APK!");
+
+        } else if ("ABORTED".equalsIgnoreCase(status)) {
+            postError(callback, cancelled, "Scan was cancelled by the server.");
         }
     }
 

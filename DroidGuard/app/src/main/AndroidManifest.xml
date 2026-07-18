@@ -16,7 +16,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DroidGuard"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:localeConfig="@xml/locales_config">
 
         <activity
             android:name=".ui.activity.DashboardActivity"
@@ -30,7 +31,9 @@
         <activity
             android:name=".ui.activity.ProgressActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity">
+            android:parentActivityName=".MainActivity"
+            android:configChanges="locale|layoutDirection|orientation|screenSize"
+            >
         </activity>
 
         <activity

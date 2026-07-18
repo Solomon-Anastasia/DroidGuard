@@ -19,11 +19,9 @@ public class ReportActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_report);
 
-        // Setup toolbar back button
         MaterialToolbar toolbar = findViewById(R.id.reportToolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
 
-        // Bind UI elements
         MaterialCardView cardVerdict = findViewById(R.id.cardVerdict);
         TextView textAppName = findViewById(R.id.textReportAppName);
         TextView textVerdict = findViewById(R.id.textVerdict);
@@ -36,48 +34,62 @@ public class ReportActivity extends AppCompatActivity {
 
         if (appName != null) textAppName.setText(appName);
 
-        // Parse the JSON
         try {
             JSONObject report = new JSONObject(jsonString);
 
-            // Extract core fields defined in verdict.py
-            String verdict = report.optString("verdict", "UNKNOWN");
+            String rawVerdict = report.optString("verdict", "unknown").toLowerCase();
             double score = report.optDouble("threat_score", 0.0);
-            String reason = report.optString("reason", "No detailed reasoning provided.");
 
-            textVerdict.setText(verdict.toUpperCase());
-            textScore.setText("Threat score: " + score + " / 1.0");
-            textReasoning.setText(reason);
+            String reason = report.optString("reason", getString(R.string.reasoning_default));
 
-            if ("clean".equalsIgnoreCase(verdict)) {
-                cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_safe_bg));
-                textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_safe_text));
+            String localizedVerdict;
+            switch (rawVerdict) {
+                case "clean":
+                    localizedVerdict = getString(R.string.verdict_clean);
+                    cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_safe_bg));
+                    textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_safe_text));
 
-            } else if ("suspicious".equalsIgnoreCase(verdict)) {
-                cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_suspicious_bg));
-                textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_suspicious_text));
+                    break;
+                case "suspicious":
+                    localizedVerdict = getString(R.string.verdict_suspicious);
+                    cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_suspicious_bg));
+                    textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_suspicious_text));
 
-            } else if ("malicious".equalsIgnoreCase(verdict)) {
-                cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_malicious_bg));
-                textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_malicious_text));
+                    break;
+                case "malicious":
+                    localizedVerdict = getString(R.string.verdict_malicious);
+                    cardVerdict.setCardBackgroundColor(ContextCompat.getColor(this, R.color.report_malicious_bg));
+                    textVerdict.setTextColor(ContextCompat.getColor(this, R.color.report_malicious_text));
+
+                    break;
+                default:
+                    localizedVerdict = getString(R.string.verdict_unknown);
+                    break;
             }
 
-            // Extract summary metrics
+            textVerdict.setText(localizedVerdict.toUpperCase());
+
+            textScore.setText(getString(R.string.threat_score_format, String.valueOf(score)));
+
+            textReasoning.setText(reason);
+
             JSONObject yara = report.optJSONObject("yara_summary");
             JSONObject androguard = report.optJSONObject("androguard_summary");
 
             StringBuilder details = new StringBuilder();
             if (yara != null) {
-                details.append("YARA Threats Found: ").append(yara.optInt("threats_found", 0)).append("\n");
+                int threatsFound = yara.optInt("threats_found", 0);
+                details.append(getString(R.string.yara_threats_found, threatsFound)).append("\n");
             }
             if (androguard != null) {
-                details.append("High Severity Heuristics: ").append(androguard.optInt("high_severity_count", 0));
+                int highSeverity = androguard.optInt("high_severity_count", 0);
+                details.append(getString(R.string.high_severity_heuristics, highSeverity));
             }
             textDetails.setText(details.toString());
 
         } catch (Exception e) {
             e.printStackTrace();
-            textReasoning.setText("Failed to parse report data.\n\nRaw Data:\n" + jsonString);
+            textReasoning.setText(getString(R.string.failed_parse, jsonString));
         }
     }
 }

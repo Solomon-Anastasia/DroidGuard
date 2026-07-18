@@ -23,20 +23,40 @@
                 android:orientation="vertical"
                 android:paddingHorizontal="20dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Updated Title Bar with Language Toggle -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="DroidGuard"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="16dp">
+
+                    <TextView
+                        android:id="@+id/textTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:text="@string/app_name"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLanguageToggle"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:text="@string/lang_label"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="24dp"
-                    android:text="System Security Hub"
+                    android:text="@string/system_security_hub"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -73,7 +93,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Scanned"
+                                android:text="@string/scanned"
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -97,7 +117,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Safe"
+                                android:text="@string/safe"
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -121,7 +141,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Suspicious"
+                                android:text="@string/suspicious"
                                 android:textColor="?attr/colorOnSurfaceVariant"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -160,7 +180,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_toEndOf="@id/progressScan"
-                            android:text="Active Scans in Progress"
+                            android:text="@string/active_scans"
                             android:textColor="@color/security_on_container"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -173,7 +193,7 @@
                             android:layout_marginTop="2dp"
                             android:layout_toEndOf="@id/progressScan"
                             android:alpha="0.8"
-                            android:text="Tap to view pipeline status"
+                            android:text="@string/tap_to_view_pipeline"
                             android:textColor="@color/security_on_container"
                             android:textSize="12sp" />
                     </RelativeLayout>
@@ -212,7 +232,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_toEndOf="@id/iconCompleted"
-                            android:text="Session reports ready"
+                            android:text="@string/session_reports_ready"
                             android:textColor="@color/status_completed_title"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -224,7 +244,7 @@
                             android:layout_below="@id/textCompletedTitle"
                             android:layout_marginTop="2dp"
                             android:layout_toEndOf="@id/iconCompleted"
-                            android:text="Tap to view completed scan results"
+                            android:text="@string/tap_to_view_completed"
                             android:textColor="@color/status_completed_subtitle"
                             android:textSize="12sp" />
                     </RelativeLayout>
@@ -240,7 +260,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginBottom="16dp"
-                    android:text="Installed apps"
+                    android:text="@string/installed_apps"
                     android:textSize="16sp"
                     app:cornerRadius="12dp" />
             </LinearLayout>

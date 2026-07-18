@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DroidGuard</string>
+    <string name="lang_label">RO</string>
+    <string name="system_security_hub">Centru de securitate a sistemului</string>
+    <string name="scanned">Scanate</string>
+    <string name="safe">Sigure</string>
+    <string name="suspicious">Suspecte</string>
+    <string name="active_scans">Scanări active</string>
+    <string name="tap_to_view_pipeline">Apasă pentru detalii</string>
+    <string name="session_reports_ready">Rapoarte gata</string>
+    <string name="tap_to_view_completed">Apasă pentru a vizualiza rezultatele scanării</string>
+    <string name="installed_apps">Aplicații instalate</string>
+    <string name="active_scans_count">%1$d scanări active</string>
+    <string name="reports_ready_count">%1$d rapoarte gata</string>
+    <string name="select_app_to_scan">Selectează aplicația</string>
+
+    <string name="search_apps">Caută aplicații…</string>
+    <string name="scans_title">Scanări</string>
+
+    <string name="analysis_report">Raport analiză</string>
+    <string name="app_name_placeholder">Nume aplicație</string>
+    <string name="verdict_placeholder">SIGUR</string>
+    <string name="threat_score_placeholder">Scor amenințare: 0.0 / 1.0</string>
+    <string name="engine_reasoning">Raționamentul motorului</string>
+    <string name="loading_reasoning">Se încarcă raționamentul…</string>
+    <string name="loading_summary">Se încarcă rezumatul…</string>
+
+    <string name="threat_score_format">Scor amenințare: %1$s / 1.0</string>
+
+    <string name="verdict_clean">SIGUR</string>
+    <string name="verdict_suspicious">SUSPECT</string>
+    <string name="verdict_malicious">MALIȚIOS</string>
+    <string name="verdict_unknown">NECUNOSCUT</string>
+
+    <string name="reasoning_default">Nu au fost furnizate detalii suplimentare.</string>
+    <string name="yara_threats_found">Amenințări YARA descoperite: %1$d </string>
+    <string name="high_severity_heuristics">Eurustici de severitate ridicată: %1$d</string>
+    <string name="failed_parse">Eșec la procesarea datelor raportului.\n\nDate brute:\n%1$s</string>
+
+    <string name="icon_complete_desc">Pictogramă scanare completă</string>
+    <string name="btn_cancel_desc">Buton anulare scanare</string>
+
+    <string name="status_pending">În așteptare…</string>
+    <string name="status_uploading">Se încarcă payload-ul…</string>
+    <string name="status_scanning">Se analizează…</string>
+    <string name="status_completed">Complet</string>
+
+    <string name="scan_dialog_title">Scanați aplicația?</string>
+    <string name="scan_dialog_message">Doriți să trimiteți %1$s către Gateway pentru analiza malware?</string>
+    <string name="scan_dialog_positive">Începe scanarea</string>
+    <string name="scan_dialog_negative">Anulează</string>
+
+    <string name="toast_analysis_running">Analiza este încă în desfășurare…</string>
+
+    <string name="delete_record_title">Ștergeți înregistrarea?</string>
+    <string name="delete_record_message">Eliminați istoricul de scanare pentru %1$s?</string>
+    <string name="action_delete">Șterge</string>
+    <string name="action_cancel">Anulează</string>
+
+    <string name="cancel_analysis_title">Anulați analiza?</string>
+    <string name="cancel_analysis_message">Doriți să anulați scanarea malware pentru %1$s?</string>
+    <string name="action_abort_scan">Anulează</string>
+    <string name="action_keep_scanning">Continuă</string>
+
+    <string name="status_recovering_scan">Recuperare scanare…</string>
+    <string name="status_completed_report">Complet! Vezi raportul</string>
+    <string name="status_failed">Eșuat: %1$s</string>
+    <string name="status_initializing">Se inițializează scanarea…</string>
+
+    <string name="status_analyzing_time">Analizare… %1$s</string>
+</resources>

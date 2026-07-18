@@ -3,25 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
     android:fitsSystemWindows="true"
-    android:background="?android:attr/colorBackground">
+    android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/progressToolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:title="Scans"
-        app:navigationIcon="?attr/homeAsUpIndicator" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="16dp"
-        android:text="Monitoring apps"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="14sp" />
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:title="@string/scans_title" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerActiveScans"

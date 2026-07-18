@@ -1,5 +1,6 @@
 package com.security.droidguard.gateway.controller;
 
+import com.security.droidguard.gateway.config.ScanWebSocketHandler; // Import your handler
 import com.security.droidguard.gateway.model.dto.HashCheckResponse;
 import com.security.droidguard.gateway.model.dto.StatusResponse;
 import com.security.droidguard.gateway.model.dto.UploadResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Map;
@@ -23,10 +25,13 @@ import java.util.Optional;
 public class AnalysisController {
     private static final Logger logger = LoggerFactory.getLogger(AnalysisController.class);
     private final JobRoutingService jobRoutingService;
+    private final ScanWebSocketHandler webSocketHandler;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
-    public AnalysisController(JobRoutingService jobRoutingService) {
+    public AnalysisController(JobRoutingService jobRoutingService, ScanWebSocketHandler webSocketHandler) {
         this.jobRoutingService = jobRoutingService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     @GetMapping("/check")
@@ -91,11 +96,15 @@ public class AnalysisController {
         ));
     }
 
-    @PostMapping("/status/failed")
+    @PostMapping("/internal/status/failed")
     public ResponseEntity<?> reportFailed(@RequestBody WorkerCallbackRequest request) {
         logger.info("Failed for job ID: {}", request.getJobId());
         try {
             jobRoutingService.updateJobStatus(request.getJobId(), "FAILED");
+
+            String jobIdStr = String.valueOf(request.getJobId());
+            String failureJson = Map.of("status", "FAILED").toString();
+            webSocketHandler.sendPayloadToClient(jobIdStr, "{\"status\":\"FAILED\"}");
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -114,6 +123,23 @@ public class AnalysisController {
 
         try {
             jobRoutingService.updateJobWithReport(request.getJobId(), request.getYaraReport());
+
+            String jobIdStr = String.valueOf(request.getJobId());
+
+            Map<String, Object> responseMap = Map.of(
+                    "status", "COMPLETED",
+                    "yaraReport", request.getYaraReport()
+            );
+
+            String jsonPayload = null;
+            try {
+                jsonPayload = objectMapper.writeValueAsString(responseMap);
+                webSocketHandler.sendPayloadToClient(jobIdStr, jsonPayload);
+            } catch (Exception e) {
+                logger.error("JSON Serialization failed! Report content might be invalid: ", e);
+            }
+
+            webSocketHandler.sendPayloadToClient(jobIdStr, jsonPayload);
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -150,6 +176,8 @@ public class AnalysisController {
 
         try {
             jobRoutingService.updateJobStatus(jobId, "ABORTED");
+
+            webSocketHandler.sendPayloadToClient(String.valueOf(jobId), "{\"status\":\"ABORTED\"}");
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {

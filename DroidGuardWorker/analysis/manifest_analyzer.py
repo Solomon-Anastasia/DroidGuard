@@ -185,6 +185,10 @@ def _check_exported_components(apk) -> list:
         logger.warning(f"Failed to read AndroidManifest.xml for exported-component check: {e}")
         return findings
 
+    if root is None:
+        logger.warning("Manifest XML is None. Skipping exported components check.")
+        return findings
+
     for tag in ("activity", "service", "receiver", "provider"):
         for element in root.iter(tag):
             name = element.get(MANIFEST_NS + "name")
@@ -457,22 +461,24 @@ def _check_sms_interception(apk, dx) -> list:
     # apps (including the default messaging app), so it can intercept/hide
     try:
         root = apk.get_android_manifest_xml()
-        for receiver in root.iter("receiver"):
-            for intent_filter in receiver.iter("intent-filter"):
-                priority = intent_filter.get(MANIFEST_NS + "priority")
 
-                if priority is None:
-                    continue
+        if root is not None:
+            for receiver in root.iter("receiver"):
+                for intent_filter in receiver.iter("intent-filter"):
+                    priority = intent_filter.get(MANIFEST_NS + "priority")
 
-                actions = {a.get(MANIFEST_NS + "name") for a in intent_filter.iter("action")}
-                if SMS_RECEIVED_ACTION not in actions:
-                    continue
+                    if priority is None:
+                        continue
 
-                try:
-                    if int(priority) >= SMS_RECEIVER_PRIORITY_THRESHOLD:
-                        markers.append(f"high-priority SMS receiver (priority={priority})")
-                except (ValueError, TypeError):
-                    continue
+                    actions = {a.get(MANIFEST_NS + "name") for a in intent_filter.iter("action")}
+                    if SMS_RECEIVED_ACTION not in actions:
+                        continue
+
+                    try:
+                        if int(priority) >= SMS_RECEIVER_PRIORITY_THRESHOLD:
+                            markers.append(f"high-priority SMS receiver (priority={priority})")
+                    except (ValueError, TypeError):
+                        continue
     except Exception as e:
         logger.warning(f"SMS receiver priority check failed: {e}")
 

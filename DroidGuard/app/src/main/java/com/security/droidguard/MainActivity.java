@@ -84,14 +84,14 @@ public class MainActivity extends AppCompatActivity {
                 adapter = new AppListAdapter(appsToShow, app -> {
 
                     new MaterialAlertDialogBuilder(MainActivity.this)
-                            .setTitle("Scan application?")
-                            .setMessage("Do you want to send " + app.getAppName() + " to the Gateway for malware analysis?")
-                            .setPositiveButton("Start scan", (dialog, which) -> {
+                            .setTitle(getString(R.string.scan_dialog_title))
+                            .setMessage(getString(R.string.scan_dialog_message, app.getAppName()))
+                            .setPositiveButton(getString(R.string.scan_dialog_positive), (dialog, which) -> {
                                 ScanManager.getInstance().startScan(app.getApkPath(), app.getAppName());
                                 Intent intent = new Intent(MainActivity.this, ProgressActivity.class);
                                 startActivity(intent);
                             })
-                            .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                            .setNegativeButton(getString(R.string.scan_dialog_negative), (dialog, which) -> dialog.dismiss())
                             .show();
                 });
 

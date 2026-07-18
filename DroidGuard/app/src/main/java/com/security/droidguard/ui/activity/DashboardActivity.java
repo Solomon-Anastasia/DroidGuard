@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.os.LocaleListCompat;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.button.MaterialButton;
@@ -41,6 +43,19 @@ public class DashboardActivity extends AppCompatActivity {
 
         ScanManager.getInstance().init(getApplicationContext());
 
+        MaterialButton btnLanguageToggle = findViewById(R.id.btnLanguageToggle);
+        btnLanguageToggle.setOnClickListener(v -> {
+            LocaleListCompat currentLocales = AppCompatDelegate.getApplicationLocales();
+
+            String currentLocale = "en"; // Default fallback
+            if (!currentLocales.isEmpty() && currentLocales.get(0) != null) {
+                currentLocale = currentLocales.get(0).getLanguage();
+            }
+
+            String targetLocale = currentLocale.equals("ro") ? "en" : "ro";
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(targetLocale));
+        });
+
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
 
         swipeRefreshLayout.setColorSchemeColors(
@@ -48,7 +63,6 @@ public class DashboardActivity extends AppCompatActivity {
                 android.graphics.Color.parseColor("#2E7D32")
         );
 
-        // Listen for user swiping down
         swipeRefreshLayout.setOnRefreshListener(this::loadLocalMetrics);
 
         textTotalScanned = findViewById(R.id.textTotalScanned);
@@ -64,13 +78,11 @@ public class DashboardActivity extends AppCompatActivity {
 
         btnOpenAppList = findViewById(R.id.btnOpenAppList);
 
-        // Navigation to the full app List
         btnOpenAppList.setOnClickListener(v -> {
             Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
             startActivity(intent);
         });
 
-        // Navigation back to the progress page when the active scan card is clicked
         cardActiveScan.setOnClickListener(v -> {
             Intent intent = new Intent(DashboardActivity.this, ProgressActivity.class);
             startActivity(intent);
@@ -81,7 +93,6 @@ public class DashboardActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // Observe the ScanManager to show/hide the active scan card dynamically
         ScanManager.getInstance().getActiveScans().observe(this, scanJobs -> {
             int activeCount = 0;
             int completedCount = 0;
@@ -94,18 +105,18 @@ public class DashboardActivity extends AppCompatActivity {
                 }
             }
 
-            // Handle the active card
             if (activeCount > 0) {
                 cardActiveScan.setVisibility(View.VISIBLE);
-                textScanningAppName.setText(activeCount + " Active scan" + (activeCount > 1 ? "s" : ""));
+                // Dynamically load the translated string with the count inserted
+                textScanningAppName.setText(getString(R.string.active_scans_count, activeCount));
             } else {
                 cardActiveScan.setVisibility(View.GONE);
             }
 
-            // Handle the Completed Card
             if (completedCount > 0) {
                 cardCompletedScans.setVisibility(View.VISIBLE);
-                textCompletedTitle.setText(completedCount + " Report" + (completedCount > 1 ? "s" : "") + " ready");
+                // Dynamically load the translated string with the count inserted
+                textCompletedTitle.setText(getString(R.string.reports_ready_count, completedCount));
             } else {
                 cardCompletedScans.setVisibility(View.GONE);
             }

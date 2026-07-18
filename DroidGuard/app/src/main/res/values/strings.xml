@@ -1,3 +1,71 @@
 <resources>
     <string name="app_name">DroidGuard</string>
+    <string name="lang_label">EN</string>
+    <string name="system_security_hub">System security hub</string>
+    <string name="scanned">Scanned</string>
+    <string name="safe">Safe</string>
+    <string name="suspicious">Suspicious</string>
+    <string name="active_scans">Active scans in progress</string>
+    <string name="tap_to_view_pipeline">Tap to view status</string>
+    <string name="session_reports_ready">Session reports ready</string>
+    <string name="tap_to_view_completed">Tap to view completed scan results</string>
+    <string name="installed_apps">Installed apps</string>
+    <string name="active_scans_count">%1$d active scan(s)</string>
+    <string name="reports_ready_count">%1$d report(s) ready</string>
+    <string name="select_app_to_scan">Select app to scan</string>
+
+    <string name="search_apps">Search apps…</string>
+    <string name="scans_title">Scans</string>
+
+    <string name="analysis_report">Analysis report</string>
+    <string name="app_name_placeholder">App name</string>
+    <string name="verdict_placeholder">SAFE</string>
+    <string name="threat_score_placeholder">Threat Score: 0.0 / 1.0</string>
+    <string name="engine_reasoning">Engine reasoning</string>
+    <string name="loading_reasoning">Loading reasoning…</string>
+    <string name="loading_summary">Loading summary…</string>
+
+    <string name="threat_score_format">Threat Score: %1$s / 1.0</string>
+
+    <string name="verdict_clean">SAFE</string>
+    <string name="verdict_suspicious">SUSPICIOUS</string>
+    <string name="verdict_malicious">MALICIOUS</string>
+    <string name="verdict_unknown">UNKNOWN</string>
+
+    <string name="reasoning_default">No detailed reasoning provided.</string>
+    <string name="yara_threats_found">YARA Threats Found: %1$d</string>
+    <string name="high_severity_heuristics">High severity heuristics: %1$d</string>
+    <string name="failed_parse">Failed to parse report data.\n\nRaw data:\n%1$s</string>
+
+    <string name="icon_complete_desc">Scan complete icon</string>
+    <string name="btn_cancel_desc">Cancel scan button</string>
+
+    <string name="status_pending">Waiting in queue…</string>
+    <string name="status_uploading">Uploading payload…</string>
+    <string name="status_scanning">Analyzing…</string>
+    <string name="status_completed">Completed</string>
+
+    <string name="scan_dialog_title">Scan application?</string>
+    <string name="scan_dialog_message">Do you want to send %1$s to the Gateway for malware analysis?</string>
+    <string name="scan_dialog_positive">Start scan</string>
+    <string name="scan_dialog_negative">Cancel</string>
+
+    <string name="toast_analysis_running">Analysis is still running…</string>
+
+    <string name="delete_record_title">Delete record?</string>
+    <string name="delete_record_message">Remove the scan history for %1$s?</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="cancel_analysis_title">Cancel analysis?</string>
+    <string name="cancel_analysis_message">Are you sure you want to abort the malware scan for %1$s?</string>
+    <string name="action_abort_scan">Abort scan</string>
+    <string name="action_keep_scanning">Keep scanning</string>
+
+    <string name="status_recovering_scan">Recovering scan…</string>
+    <string name="status_completed_report">Completed! View report</string>
+    <string name="status_failed">Failed: %1$s</string>
+    <string name="status_initializing">Initializing scan…</string>
+
+    <string name="status_analyzing_time">Analyzing… %1$s</string>
 </resources>

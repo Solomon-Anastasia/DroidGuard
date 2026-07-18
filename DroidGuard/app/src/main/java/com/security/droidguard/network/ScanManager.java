@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.security.droidguard.R;
 import com.security.droidguard.database.AppDatabase;
 import com.security.droidguard.database.LocalScanRecord;
 import com.security.droidguard.models.ScanJob;
@@ -23,12 +24,12 @@ public class ScanManager {
     private final Map<String, AnalysisHandle> activeHandles;
     private final List<ScanJob> currentScans;
     private AppDatabase database;
-    private final AnalysisProxy analysisProxy;
+    private AnalysisProxy analysisProxy;
+    private Context appContext;
 
     private ScanManager() {
         currentScans = new ArrayList<>();
         activeScansLiveData = new MutableLiveData<>(currentScans);
-        analysisProxy = new AnalysisProxy();
         activeHandles = new HashMap<>();
     }
 
@@ -40,17 +41,23 @@ public class ScanManager {
     }
 
     public void init(Context context) {
+        if (this.appContext == null) {
+            this.appContext = context.getApplicationContext();
+
+            if (this.analysisProxy == null) {
+                this.analysisProxy = new AnalysisProxy(this.appContext);
+            }
+        }
+
         if (this.database == null) {
             this.database = AppDatabase.getDatabase(context);
 
-            // Load persistent records from room into active UI view on startup
             Executors.newSingleThreadExecutor().execute(() -> {
                 List<LocalScanRecord> history = database.scanHistoryDao().getAllHistory();
 
                 for (LocalScanRecord record : history) {
                     if ("PENDING".equals(record.verdict) && record.jobId != null) {
-                        // Recovery mode: The app crashed while this was scanning
-                        ScanJob recoveringJob = new ScanJob(record.appName, "Recovering scan...");
+                        ScanJob recoveringJob = new ScanJob(record.appName, appContext.getString(R.string.status_recovering_scan));
                         currentScans.add(recoveringJob);
 
                         AnalysisHandle handle = analysisProxy.resumePolling(record.jobId, record.scanTimestamp, new AnalysisCallback() {
@@ -62,7 +69,7 @@ public class ScanManager {
 
                             @Override
                             public void onSuccess(String jsonReport) {
-                                recoveringJob.setStatusLog("Completed! View report");
+                                recoveringJob.setStatusLog(appContext.getString(R.string.status_completed_report));
                                 recoveringJob.setComplete(true);
                                 recoveringJob.setJsonReport(jsonReport);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -87,7 +94,7 @@ public class ScanManager {
 
                             @Override
                             public void onError(String error) {
-                                recoveringJob.setStatusLog("Failed: " + error);
+                                recoveringJob.setStatusLog(appContext.getString(R.string.status_failed, error));
                                 recoveringJob.setComplete(true);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
@@ -96,8 +103,7 @@ public class ScanManager {
                         });
                         activeHandles.put(record.appName, handle);
                     } else {
-                        // Normal mode: It's a completed job, load it to the UI
-                        ScanJob cachedJob = new ScanJob(record.appName, "Completed! View report");
+                        ScanJob cachedJob = new ScanJob(record.appName, appContext.getString(R.string.status_completed_report));
                         cachedJob.setComplete(true);
                         cachedJob.setJsonReport(record.jsonReport);
                         currentScans.add(cachedJob);
@@ -119,7 +125,7 @@ public class ScanManager {
             }
         }
 
-        ScanJob newJob = new ScanJob(appName, "Initializing scan...");
+        ScanJob newJob = new ScanJob(appName, appContext.getString(R.string.status_initializing));
         currentScans.add(newJob);
         activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
@@ -145,7 +151,7 @@ public class ScanManager {
 
             @Override
             public void onSuccess(String jsonReport) {
-                newJob.setStatusLog("Completed! View report");
+                newJob.setStatusLog(appContext.getString(R.string.status_completed_report));
                 newJob.setComplete(true);
                 newJob.setJsonReport(jsonReport);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -177,7 +183,7 @@ public class ScanManager {
 
             @Override
             public void onError(String error) {
-                newJob.setStatusLog("Failed: " + error);
+                newJob.setStatusLog(appContext.getString(R.string.status_failed, error));
                 newJob.setComplete(true);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
@@ -190,10 +196,8 @@ public class ScanManager {
 
     private void cleanupFailedScan(String appName) {
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Remove PENDING record that was stuck
             database.scanHistoryDao().deleteByAppName(appName);
 
-            // Insert FAILED record
             LocalScanRecord record = new LocalScanRecord(
                     appName,
                     "com.security.droidguard",

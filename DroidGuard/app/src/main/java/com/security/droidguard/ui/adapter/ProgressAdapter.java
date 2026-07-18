@@ -63,22 +63,22 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                 intent.putExtra("JSON_REPORT", job.getJsonReport());
                 v.getContext().startActivity(intent);
             } else {
-                Toast.makeText(v.getContext(), "Analysis is still running...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(v.getContext(), v.getContext().getString(R.string.toast_analysis_running), Toast.LENGTH_SHORT).show();
             }
         });
 
         holder.itemView.setOnLongClickListener(v -> {
             new MaterialAlertDialogBuilder(v.getContext())
-                    .setTitle("Delete record?")
-                    .setMessage("Remove the scan history for " + job.getAppName() + "?")
-                    .setPositiveButton("Delete", (dialog, which) -> {
+                    .setTitle(v.getContext().getString(R.string.delete_record_title))
+                    .setMessage(v.getContext().getString(R.string.delete_record_message, job.getAppName()))
+                    .setPositiveButton(v.getContext().getString(R.string.action_delete), (dialog, which) -> {
                         ScanManager.getInstance().deleteScanHistory(
                                 v.getContext(),
                                 job.getAppName(),
                                 job.isComplete()
                         );
                     })
-                    .setNegativeButton("Cancel", null)
+                    .setNegativeButton(v.getContext().getString(R.string.action_cancel), null)
                     .show();
 
             return true;
@@ -86,28 +86,22 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
         holder.btnCancelScan.setOnClickListener(v -> {
             new MaterialAlertDialogBuilder(v.getContext())
-                    .setTitle("Cancel analysis?")
-                    .setMessage("Are you sure you want to abort the malware scan for " + job.getAppName() + "?")
-                    .setPositiveButton("Abort scan", (dialog, which) -> {
+                    .setTitle(v.getContext().getString(R.string.cancel_analysis_title))
+                    .setMessage(v.getContext().getString(R.string.cancel_analysis_message, job.getAppName()))
+                    .setPositiveButton(v.getContext().getString(R.string.action_abort_scan), (dialog, which) -> {
                         ScanManager.getInstance().abortActiveScan(job.getAppName());
                     })
-                    .setNegativeButton("Keep scanning", (dialog, which) -> {
+                    .setNegativeButton(v.getContext().getString(R.string.action_keep_scanning), (dialog, which) -> {
                         dialog.dismiss();
                     })
                     .show();
         });
-
-        holder.itemView.setOnClickListener(v -> {
-            if (job.isComplete() && job.getJsonReport() != null) {
-                Intent intent = new Intent(v.getContext(), ReportActivity.class);
-
-                intent.putExtra("APP_NAME", job.getAppName());
-                intent.putExtra("JSON_REPORT", job.getJsonReport());
-
-                v.getContext().startActivity(intent);
-            }
-        });
     }
+
+    public void refresh() {
+        notifyDataSetChanged();
+    }
+
 
     @Override
     public int getItemCount() {

@@ -26,14 +26,18 @@ android {
 
     buildTypes {
         debug {
-            // Real device
+            // Real device - wireless
 //            buildConfigField "String", "BASE_URL", "\"http://10.203.246.254:8081/api\""
+//            buildConfigField "String", "WS_BASE_URL", "\"ws://10.203.246.254:8081/ws/\""
 
             // Emulator
             buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:8081/api\""
+            buildConfigField "String", "WS_BASE_URL", "\"ws://10.0.2.2:8081/ws/\""
         }
         release {
             buildConfigField "String", "BASE_URL", "\"https://api.droidguard.io/api\""
+            buildConfigField "String", "WS_BASE_URL", "\"wss://api.droidguard.io/ws/\""
+
             optimization {
                 enable true
             }
@@ -58,4 +62,5 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
