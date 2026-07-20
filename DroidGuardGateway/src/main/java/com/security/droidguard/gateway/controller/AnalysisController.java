@@ -103,7 +103,6 @@ public class AnalysisController {
             jobRoutingService.updateJobStatus(request.getJobId(), "FAILED");
 
             String jobIdStr = String.valueOf(request.getJobId());
-            String failureJson = Map.of("status", "FAILED").toString();
             webSocketHandler.sendPayloadToClient(jobIdStr, "{\"status\":\"FAILED\"}");
 
             return ResponseEntity.ok().build();
@@ -138,8 +137,6 @@ public class AnalysisController {
             } catch (Exception e) {
                 logger.error("JSON Serialization failed! Report content might be invalid: ", e);
             }
-
-            webSocketHandler.sendPayloadToClient(jobIdStr, jsonPayload);
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {

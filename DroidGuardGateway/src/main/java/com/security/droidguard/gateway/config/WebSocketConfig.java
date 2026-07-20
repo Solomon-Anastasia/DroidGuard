@@ -10,7 +10,6 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
-
     private final ScanWebSocketHandler scanWebSocketHandler;
 
     public WebSocketConfig(ScanWebSocketHandler scanWebSocketHandler) {
@@ -19,7 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // ws://your-gateway-ip:port/ws/{jobId}
+        // ws://gateway-ip:port/ws/{jobId}
         registry.addHandler(scanWebSocketHandler, "/ws/*").setAllowedOrigins("*");
     }
 

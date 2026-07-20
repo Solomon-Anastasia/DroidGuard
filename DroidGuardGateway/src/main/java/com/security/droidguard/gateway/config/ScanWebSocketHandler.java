@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ScanWebSocketHandler extends TextWebSocketHandler {
-
     private final ConcurrentHashMap<String, WebSocketSession> activeSessions = new ConcurrentHashMap<>();
 
     @Override
