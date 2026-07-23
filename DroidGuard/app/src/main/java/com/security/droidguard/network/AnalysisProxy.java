@@ -202,10 +202,8 @@ public class AnalysisProxy {
             JSONObject reportObj = json.optJSONObject("yaraReport");
             String reportStr = (reportObj != null) ? reportObj.toString() : "{}";
             postSuccess(callback, cancelled, reportStr);
-
         } else if ("FAILED".equalsIgnoreCase(status)) {
             postError(callback, cancelled, "Analysis worker failed to process the APK!");
-
         } else if ("ABORTED".equalsIgnoreCase(status)) {
             postError(callback, cancelled, "Scan was cancelled by the server.");
         }

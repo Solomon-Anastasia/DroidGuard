@@ -12,8 +12,8 @@ def run_heavy_analysis(apk_path: str, job_id: str, result_queue: multiprocessing
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] [WorkerProcess] %(message)s'
     )
-    logger = logging.getLogger(__name__)
 
+    logger = logging.getLogger(__name__)
     logger.info(f"Subprocess started for job {job_id}. Target: {apk_path}")
 
     try:

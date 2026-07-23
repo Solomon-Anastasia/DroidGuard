@@ -5,26 +5,21 @@ import logging
 from pathlib import Path
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from config import RULES_DIR, RULE_CONFIDENCE_FILE
 
 logger = logging.getLogger(__name__)
 
-# Max matched-string instances to include per rule identifier per match, so a
-# rule that matches hundreds of times in one file doesn't blow up the report
+# Limit signature that YARA matched
 MAX_INSTANCES_PER_STRING = 5
-# Max length of decoded matched text before truncation, for readability
+# Max length of decoded matched text
 MAX_MATCHED_TEXT_LEN = 120
 
 
 def _load_confidence_config() -> dict:
-    """Load rule -> confidence overrides. Falls back to an all-medium default
-    if the file is missing or malformed, so a bad config never breaks scanning"""
     default_config = {"default": "medium", "overrides": {}}
 
     if not RULE_CONFIDENCE_FILE.exists():
-        logger.info(
-            f"No rule confidence config found at {RULE_CONFIDENCE_FILE}; using default confidence for all rules.")
+        logger.info(f"No rule confidence config found at {RULE_CONFIDENCE_FILE}. Using default for all rules")
         return default_config
 
     try:
@@ -34,12 +29,12 @@ def _load_confidence_config() -> dict:
         default_config["default"] = loaded.get("default", "medium")
         default_config["overrides"] = loaded.get("overrides", {})
 
-        logger.info(
-            f"Loaded {len(default_config['overrides'])} rule confidence override(s) from {RULE_CONFIDENCE_FILE}")
+        logger.info(f"Loaded {len(default_config['overrides'])} rules from {RULE_CONFIDENCE_FILE}")
 
         return default_config
+
     except (json.JSONDecodeError, OSError) as e:
-        logger.warning(f"Failed to load rule confidence config ({e}); using default confidence for all rules.")
+        logger.warning(f"Failed to load rule confidence config ({e}). Using default for all rules")
         return default_config
 
 
@@ -67,15 +62,16 @@ def _initialize_rules():
     candidates = _discover_rule_files()
 
     if not candidates:
-        logger.warning("No YARA rules found under the rules directory.")
+        logger.warning("No YARA rules found under the rules directory")
         return None
 
-    logger.info(f"Discovered {len(candidates)} candidate rule file(s). Validating individually...")
+    logger.info(f"Discovered {len(candidates)} candidate rule(s). Validating individually...")
 
     good_files = {}
     rejected = []
 
     for path in candidates:
+        # Isolate duplicate rule name in different namespaces
         namespace = str(path.relative_to(RULES_DIR))
 
         try:
@@ -87,13 +83,13 @@ def _initialize_rules():
             rejected.append((namespace, f"Unexpected error: {e}"))
 
     if rejected:
-        logger.warning(f"Skipping {len(rejected)} rule file(s) that failed to compile:")
+        logger.warning(f"Skipping {len(rejected)} rule(s) that failed to compile:")
 
         for namespace, reason in rejected:
-            logger.warning(f"  - {namespace}: {reason}")
+            logger.warning(f"   - {namespace}: {reason}")
 
     if not good_files:
-        logger.error("No rule files compiled successfully. Scanning will be disabled.")
+        logger.error("No rule files compiled successfully. Scanning will be disabled")
         return None
 
     try:
@@ -105,15 +101,13 @@ def _initialize_rules():
 
 
 COMPILED_RULES = _initialize_rules()
-
+# Target only dalvik, shared objects, manifest, and web file, discard rest
 VALID_EXTENSIONS = {".dex", ".so", ".xml", ".js", ".json", ".html"}
 
 
 def _extract_string_matches(match) -> list:
-    """Pull out exactly what triggered the match — which string identifier,
-    where in the file, and the actual bytes matched — so a hit can be
-    manually triaged instead of trusted blindly off the rule name alone"""
     extracted = []
+
     for string_match in match.strings:
         instances = []
 
@@ -143,6 +137,7 @@ def _scan_single_file(file_path: str, target_dir: Path) -> list:
 
     try:
         matches = COMPILED_RULES.match(file_path)
+
         for match in matches:
             local_matches.append({
                 "rule": match.rule,
@@ -161,7 +156,7 @@ def _scan_single_file(file_path: str, target_dir: Path) -> list:
 
 def scan_directory(target_dir: Path) -> dict:
     if not COMPILED_RULES:
-        return {"status": "error", "message": "No valid YARA rules compiled."}
+        return {"status": "error", "message": "No valid YARA rules compiled"}
 
     logger.info("Starting multithreaded YARA scan...")
 
@@ -181,7 +176,10 @@ def scan_directory(target_dir: Path) -> dict:
     files_scanned = len(files_to_scan)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_file = {executor.submit(_scan_single_file, fp, target_dir): fp for fp in files_to_scan}
+        future_to_file = {
+            executor.submit(_scan_single_file, file_path, target_dir):
+                file_path for file_path in files_to_scan
+        }
 
         for future in as_completed(future_to_file):
             result = future.result()

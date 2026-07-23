@@ -12,16 +12,14 @@ SUSPICIOUS_THRESHOLD = 0.40
 SUSPICIOUS_CEILING = 0.74
 
 # Evidence channels
-# A channel is an independent line of evidence. Corroboration = the same
-# behaviour being pointed at by DIFFERENT channels. The weight is how much a
-# single channel contributes before corroboration bonuses.
-CH_SIGNATURE = "yara_signature"  # curated rule match -> trusted, specific
-CH_DEX_API = "dex_api"  # code actually calls the API
-CH_STRING = "string"  # hardcoded URL/IP evidence
-CH_STRUCTURE = "manifest_structure"  # exported component surface
-CH_PERMISSION = "permission"  # requested permission (cheap -> weak alone)
+# Corroboration = the same behaviour being pointed at by different channels
+CH_SIGNATURE = "yara_signature"  # Rule match
+CH_DEX_API = "dex_api"  # Code calls the API
+CH_STRING = "string"  # Hardcoded URL/IP evidence
+CH_STRUCTURE = "manifest_structure"  # Exported component surface
+CH_PERMISSION = "permission"  # Requested permission (weak alone)
 CH_CERT = "certificate"
-CH_BEHAVIOR = "behavior_marker"  # a discriminator of malicious INTENT
+CH_BEHAVIOR = "behavior_marker"  # A discriminator of malicious intent
 
 CHANNEL_WEIGHTS = {
     CH_SIGNATURE: 0.45,
@@ -35,7 +33,7 @@ CHANNEL_WEIGHTS = {
 SIGNATURE_LOW_WEIGHT = 0.10
 CONTEXT_CAP = 0.30
 
-# When >=2 distinct channels agree on a behaviour, agreement is superlinear evidence -- reward it
+# When >=2 distinct channels agree on a behaviour
 CORROBORATION_MULTIPLIER = 1.5
 TRIPLE_CHANNEL_BONUS = 1.1
 
@@ -57,15 +55,12 @@ B_PERSIST = "persistence"
 B_INTEGRITY = "integrity_anomaly"
 B_EVASION = "evasion"
 
-# Behaviours that, when corroborated, genuinely indicate malice and may drive a
-# malicious verdict
+# Behaviours that indicate malice and may get a malicious verdict
 STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_DYNAMIC, B_EXFIL, B_SIGNATURE}
 CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY}
 
 
 def _is_context(behavior: str, interception_present: bool) -> bool:
-    """A behaviour is treated as benign 'context' (capped, never a driver)
-    unless a genuine malice discriminator is present"""
     if behavior in CONTEXT_BEHAVIORS:
         return True
     if behavior == B_SMS and not interception_present:
@@ -73,32 +68,15 @@ def _is_context(behavior: str, interception_present: bool) -> bool:
     return False
 
 
+# High convidence part
 def _indicator(behavior, channel, weight, source):
     return {"behavior": behavior, "channel": channel, "weight": weight, "source": source}
 
 
 def _find_high_confidence_yara(yara_report: dict) -> list:
-    """High-confidence YARA matches convict outright.
-     Which rules count as high is configuration, not code"""
     if yara_report.get("status") != "completed":
         return []
     return [m for m in yara_report.get("matches", []) if m.get("confidence") == "high"]
-
-
-def _signature_behavior(rule_name: str, tags: str) -> str:
-    """Map a YARA rule to a behaviour when its name/tags hint at one, so a
-    signature can corroborate heuristic evidence for the same behaviour.
-    Falls back to a generic known signature behaviour otherwise"""
-    hay = f"{rule_name} {tags}".lower()
-    if "sms" in hay or "smish" in hay:
-        return B_SMS
-    if "overlay" in hay or "bank" in hay or "inject" in hay:
-        return B_OVERLAY
-    if "drop" in hay or "loader" in hay or "packer" in hay:
-        return B_DYNAMIC
-    if "spy" in hay or "steal" in hay or "exfil" in hay or "stealer" in hay:
-        return B_EXFIL
-    return B_SIGNATURE
 
 
 def _permission_behavior(short_perm: str):
@@ -116,6 +94,21 @@ def _permission_behavior(short_perm: str):
     return mapping.get(short_perm)
 
 
+def _signature_behavior(rule_name: str, tags: str) -> str:
+    hay = f"{rule_name} {tags}".lower()
+
+    if "sms" in hay or "smish" in hay:
+        return B_SMS
+    if "overlay" in hay or "bank" in hay or "inject" in hay:
+        return B_OVERLAY
+    if "drop" in hay or "loader" in hay or "packer" in hay:
+        return B_DYNAMIC
+    if "spy" in hay or "steal" in hay or "exfil" in hay or "stealer" in hay:
+        return B_EXFIL
+
+    return B_SIGNATURE
+
+
 def _combo_behaviors(name: str) -> set:
     n = name.lower()
     behaviors = set()
@@ -128,6 +121,7 @@ def _combo_behaviors(name: str) -> set:
         behaviors.add(B_OVERLAY)
     if "exfiltration" in n or "contacts" in n or "call log" in n:
         behaviors.add(B_EXFIL)
+
     return behaviors or {B_INTEGRITY}
 
 
@@ -141,9 +135,11 @@ def _api_behavior(name: str):
         "Reflection": B_EVASION,
         "Base64 decoding": B_EVASION,
     }
+
     return mapping.get(name)
 
 
+# Data normalization
 def _indicators_from_finding(finding: dict) -> list:
     ftype = finding.get("type")
     name = finding.get("name", "")
@@ -156,6 +152,7 @@ def _indicators_from_finding(finding: dict) -> list:
     elif ftype == "exported_component_without_permission":
         actions = finding.get("sensitive_actions") or []
         behaviors = set()
+
         for action in actions:
             if "SMS_RECEIVED" in action:
                 behaviors.add(B_SMS)
@@ -163,6 +160,7 @@ def _indicators_from_finding(finding: dict) -> list:
                 behaviors.add(B_PERSIST)
             elif "PHONE_STATE" in action:
                 behaviors.add(B_FINGERPRINT)
+
         for behavior in (behaviors or {B_INTEGRITY}):
             out.append(_indicator(behavior, CH_STRUCTURE, CHANNEL_WEIGHTS[CH_STRUCTURE], name))
 
@@ -172,8 +170,9 @@ def _indicators_from_finding(finding: dict) -> list:
 
     elif ftype == "suspicious_api_call":
         behavior = _api_behavior(name)
+
         if behavior == B_EVASION:
-            out.append(_indicator(B_EVASION, CH_DEX_API, 0.0, name))  # amplifier marker
+            out.append(_indicator(B_EVASION, CH_DEX_API, 0.0, name))
         elif behavior:
             out.append(_indicator(behavior, CH_DEX_API, CHANNEL_WEIGHTS[CH_DEX_API], name))
 
@@ -194,6 +193,7 @@ def _interception_present(heuristic_report: dict) -> bool:
     return any(f.get("type") == "sms_interception" for f in heuristic_report.get("findings", []))
 
 
+# Rest of the confidence (without high indicators)
 def _collect_indicators(yara_report: dict, heuristic_report: dict) -> list:
     indicators = []
 
@@ -208,6 +208,7 @@ def _collect_indicators(yara_report: dict, heuristic_report: dict) -> list:
             tags = " ".join(match.get("tags") or [])
             behavior = _signature_behavior(rule, tags)
             weight = CHANNEL_WEIGHTS[CH_SIGNATURE] if confidence == "medium" else SIGNATURE_LOW_WEIGHT
+
             indicators.append(_indicator(behavior, CH_SIGNATURE, weight, rule))
 
     for finding in heuristic_report.get("findings", []):
@@ -215,23 +216,18 @@ def _collect_indicators(yara_report: dict, heuristic_report: dict) -> list:
 
     for perm in heuristic_report.get("permissions", []):
         behavior = _permission_behavior(perm)
+
         if behavior:
             indicators.append(_indicator(behavior, CH_PERMISSION, CHANNEL_WEIGHTS[CH_PERMISSION], perm))
 
     return indicators
 
 
+# Require multiple channels to confirm a strong threat
+# Common behaviors are score-capped so they only act as context, not primary evidence
+# For unconfirmed weak signals, take the maximum score
 def _score_indicators(indicators: list, interception_present: bool = False):
-    """Corroboration-based fusion
-
-    Core rules:
-      1. A behaviour becomes strong evidence only when independent channels
-         agree on it. A malicious verdict needs a corroborated strong behaviour
-      2. Behaviours that benign apps routinely exhibit are capped as
-         context, they support a real driver but never set the floor
-      3. In the absence of a corroborated strong behaviour the score is the
-         single strongest (capped) behaviour, NOT a sum, so an app with many
-         independent weak signals (a big legit app) doesn't creep upward"""
+    # Create key if not exists
     behavior_channels = defaultdict(dict)
     evasion_present = False
 
@@ -243,6 +239,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
             continue
 
         channel, weight = ind["channel"], ind["weight"]
+
         if weight > behavior_channels[behavior].get(channel, 0.0):
             behavior_channels[behavior][channel] = weight
 
@@ -258,7 +255,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         if n >= 3:
             raw *= TRIPLE_CHANNEL_BONUS
 
-        # Cap behaviours that lack a malice discriminator so mere capability can't approach a conviction
+        # Cap behaviours that lack evidence
         cap = CONTEXT_CAP if _is_context(behavior, interception_present) else 1.0
         behavior_scores[behavior] = min(raw, cap)
         channel_counts[behavior] = n
@@ -281,8 +278,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         breakdown["overall"] = 0.0
         return 0.0, breakdown
 
-    # A strong driver requires: a STRONG behaviour, corroborated by >=2
-    # channels, AND not demoted to context
+    # A strong signal requires a strong behaviour
     corroborated_strong = [
         s for b, s in behavior_scores.items()
         if channel_counts[b] >= 2
@@ -291,8 +287,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
     ]
 
     if corroborated_strong:
-        # Real, corroborated malicious behaviour -> full range, driven by the
-        # strongest such behaviour plus a modest contribution from the rest
+        # Diminishing returns aggregation rule
         primary = max(corroborated_strong)
         overall = primary + SECONDARY_WEIGHT * (sum(behavior_scores.values()) - primary)
 
@@ -300,20 +295,23 @@ def _score_indicators(indicators: list, interception_present: bool = False):
             overall *= EVASION_AMPLIFIER
         breakdown["decision"] = "corroborated_strong_behavior"
     else:
+        # No strong behaviour confirmed
         overall = max(behavior_scores.values())
         notable = [s for s in behavior_scores.values() if s >= CONTEXT_CAP]
+
         if len(notable) >= 3:
             overall += 0.08
+
         overall = min(overall, SUSPICIOUS_CEILING)
         breakdown["decision"] = "uncorroborated_capped"
 
     overall = max(0.0, min(overall, 1.0))
     breakdown["overall"] = round(overall, 2)
+
     return overall, breakdown
 
 
 def _decide(yara_report: dict, heuristic_report: dict):
-    """Run the decision cascade """
     yara_available = yara_report.get("status") == "completed"
 
     # High-confidence YARA short-circuit
@@ -328,18 +326,17 @@ def _decide(yara_report: dict, heuristic_report: dict):
 
         reason = (
             f"High-confidence YARA signature matched ({preview}). "
-            f"Known-malicious pattern -- convicted on signature alone; "
-            f"corroboration scoring skipped."
+            f"Known-malicious pattern: convicted on signature alone."
+            f"Corroboration scoring skipped."
         )
 
-        return (VERDICT_MALICIOUS, 1.0, reason,
-                "yara_high_confidence_short_circuit", None)
+        return VERDICT_MALICIOUS, 1.0, reason, "yara_high_confidence_short_circuit", None
 
     # Corroboration-based fusion
-    interception_present = _interception_present(heuristic_report)
+    is_interception_present = _interception_present(heuristic_report)
     threat_score, breakdown = _score_indicators(
         _collect_indicators(yara_report, heuristic_report),
-        interception_present,
+        is_interception_present,
     )
 
     if threat_score >= MALICIOUS_THRESHOLD:
@@ -352,16 +349,16 @@ def _decide(yara_report: dict, heuristic_report: dict):
 
     if threat_score >= SUSPICIOUS_THRESHOLD:
         reason = (
-            f"Threat score ({threat_score:.2f}/1.0) reached the suspicious "
-            f"threshold. Signals present but not corroborated strongly enough "
-            f"to convict. Needs manual review."
+            f"Threat score ({threat_score:.2f}/1.0) reached the suspicious threshold. "
+            f"Signals present but not corroborated strongly enough to convict. "
+            f"Needs manual review."
         )
         return VERDICT_SUSPICIOUS, threat_score, reason, "corroboration_score", breakdown
 
     if not yara_available:
         reason = (
-            "YARA scanning was unavailable for this job. Treat with caution "
-            ", this is an incomplete scan, not a confirmed clean result."
+            "YARA scanning was unavailable for this job. Treat with caution, "
+            "this is an incomplete scan, not a confirmed clean result."
         )
         return VERDICT_SUSPICIOUS, threat_score, reason, "yara_unavailable", breakdown
 
