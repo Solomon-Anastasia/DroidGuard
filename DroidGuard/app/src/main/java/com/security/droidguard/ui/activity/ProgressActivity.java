@@ -43,13 +43,4 @@ public class ProgressActivity extends AppCompatActivity {
             adapter.updateData(scanJobs);
         });
     }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-
-        if (adapter != null) {
-            adapter.refresh();
-        }
-    }
 }

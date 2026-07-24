@@ -27,12 +27,12 @@ android {
     buildTypes {
         debug {
             // Real device - wireless
-//            buildConfigField "String", "BASE_URL", "\"http://10.203.246.254:8081/api\""
-//            buildConfigField "String", "WS_BASE_URL", "\"ws://10.203.246.254:8081/ws/\""
+            buildConfigField "String", "BASE_URL", "\"http://10.83.0.254:8081/api\""
+            buildConfigField "String", "WS_BASE_URL", "\"ws://10.83.0.254:8081/ws/\""
 
             // Emulator
-            buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:8081/api\""
-            buildConfigField "String", "WS_BASE_URL", "\"ws://10.0.2.2:8081/ws/\""
+//            buildConfigField "String", "BASE_URL", "\"http://10.0.2.2:8081/api\""
+//            buildConfigField "String", "WS_BASE_URL", "\"ws://10.0.2.2:8081/ws/\""
         }
         release {
             buildConfigField "String", "BASE_URL", "\"https://api.droidguard.io/api\""

@@ -68,4 +68,8 @@
     <string name="status_initializing">Initializing scan…</string>
 
     <string name="status_analyzing_time">Analyzing… %1$s</string>
+
+    <string name="retry_scan_title">Scan failed</string>
+    <string name="retry_scan_message">The analysis for %1$s failed. What would you like to do?</string>
+    <string name="action_retry">Retry</string>
 </resources>

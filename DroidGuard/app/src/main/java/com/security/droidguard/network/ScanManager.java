@@ -26,6 +26,7 @@ public class ScanManager {
     private AppDatabase database;
     private AnalysisProxy analysisProxy;
     private Context appContext;
+    private final java.util.concurrent.ExecutorService dbExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private ScanManager() {
         currentScans = new ArrayList<>();
@@ -57,19 +58,23 @@ public class ScanManager {
 
                 for (LocalScanRecord record : history) {
                     if ("PENDING".equals(record.verdict) && record.jobId != null) {
-                        ScanJob recoveringJob = new ScanJob(record.appName, appContext.getString(R.string.status_recovering_scan));
+                        ScanJob recoveringJob = new ScanJob(record.appName, R.string.status_recovering_scan);
                         currentScans.add(recoveringJob);
 
                         AnalysisHandle handle = analysisProxy.resumePolling(record.jobId, record.scanTimestamp, new AnalysisCallback() {
                             @Override
                             public void onProgress(String status) {
+                                // Guard against trailing progress updates after completion
+                                if (recoveringJob.isComplete()) return;
+
                                 recoveringJob.setStatusLog(status);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
                             }
 
                             @Override
                             public void onSuccess(String jsonReport) {
-                                recoveringJob.setStatusLog(appContext.getString(R.string.status_completed_report));
+                                activeHandles.remove(record.appName); // Clean up handle
+                                recoveringJob.setStatusResId(R.string.status_completed_report);
                                 recoveringJob.setComplete(true);
                                 recoveringJob.setJsonReport(jsonReport);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -94,7 +99,8 @@ public class ScanManager {
 
                             @Override
                             public void onError(String error) {
-                                recoveringJob.setStatusLog(appContext.getString(R.string.status_failed, error));
+                                activeHandles.remove(record.appName); // Clean up handle
+                                recoveringJob.setStatusResId(R.string.status_failed, error);
                                 recoveringJob.setComplete(true);
                                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
@@ -103,7 +109,7 @@ public class ScanManager {
                         });
                         activeHandles.put(record.appName, handle);
                     } else {
-                        ScanJob cachedJob = new ScanJob(record.appName, appContext.getString(R.string.status_completed_report));
+                        ScanJob cachedJob = new ScanJob(record.appName, R.string.status_completed_report);
                         cachedJob.setComplete(true);
                         cachedJob.setJsonReport(record.jsonReport);
                         currentScans.add(cachedJob);
@@ -125,16 +131,21 @@ public class ScanManager {
             }
         }
 
-        ScanJob newJob = new ScanJob(appName, appContext.getString(R.string.status_initializing));
+        ScanJob newJob = new ScanJob(appName, R.string.status_initializing);
+        newJob.setApkPath(apkPath);
         currentScans.add(newJob);
-        activeScansLiveData.postValue(new ArrayList<>(currentScans));
+        activeScansLiveData.setValue(new ArrayList<>(currentScans));
 
         AnalysisHandle handle = analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
             @Override
             public void onProgress(String status) {
+                if (newJob.isComplete()) return;
+
                 if (status.startsWith("JOB_ID_ATTACHED:")) {
                     String savedJobId = status.split(":")[1];
-                    Executors.newSingleThreadExecutor().execute(() -> {
+
+                    // Unified dbExecutor
+                    dbExecutor.execute(() -> {
                         database.scanHistoryDao().deleteByAppName(appName);
 
                         LocalScanRecord record = new LocalScanRecord(
@@ -145,13 +156,16 @@ public class ScanManager {
                     });
                 } else {
                     newJob.setStatusLog(status);
+
+                    // Keep postValue since callbacks are in the background
                     activeScansLiveData.postValue(new ArrayList<>(currentScans));
                 }
             }
 
             @Override
             public void onSuccess(String jsonReport) {
-                newJob.setStatusLog(appContext.getString(R.string.status_completed_report));
+                activeHandles.remove(appName);
+                newJob.setStatusResId(R.string.status_completed_report);
                 newJob.setComplete(true);
                 newJob.setJsonReport(jsonReport);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -183,7 +197,8 @@ public class ScanManager {
 
             @Override
             public void onError(String error) {
-                newJob.setStatusLog(appContext.getString(R.string.status_failed, error));
+                activeHandles.remove(appName);
+                newJob.setStatusResId(R.string.status_failed, error);
                 newJob.setComplete(true);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
@@ -246,17 +261,20 @@ public class ScanManager {
             activeHandles.remove(appNameToDelete);
         }
 
-        Executors.newSingleThreadExecutor().execute(() -> {
-            AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
-
-            for (int i = 0; i < currentScans.size(); i++) {
-                if (currentScans.get(i).getAppName().equals(appNameToDelete)) {
-                    currentScans.remove(i);
-                    break;
-                }
+        // Remove from list immediately on the main thread
+        for (int i = 0; i < currentScans.size(); i++) {
+            if (currentScans.get(i).getAppName().equals(appNameToDelete)) {
+                currentScans.remove(i);
+                break;
             }
+        }
 
-            activeScansLiveData.postValue(new ArrayList<>(currentScans));
+        // Force the UI to update synchronously
+        activeScansLiveData.setValue(new ArrayList<>(currentScans));
+
+        // Safely perform database work using the shared executor
+        dbExecutor.execute(() -> {
+            AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
         });
     }
 }

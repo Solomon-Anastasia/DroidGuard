@@ -52,7 +52,6 @@ class GatewayClient:
             )
             response.raise_for_status()
 
-            logger.info(f"Successfully checked job satus for job {job_id}")
             return response.text.strip().strip('"').upper()
 
         except requests.exceptions.ConnectionError:

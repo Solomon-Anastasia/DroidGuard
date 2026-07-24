@@ -1,27 +1,73 @@
 package com.security.droidguard.models;
 
+import android.content.Context;
+
 public class ScanJob {
     private String appName;
-    private String statusLog;
+    private String apkPath;
+    private int statusResId = 0;
+    private String statusArg = null;
+    private String rawStatusLog = null;
     private boolean isComplete;
     private String jsonReport;
 
-    public ScanJob(String appName, String statusLog) {
+    public ScanJob(String appName, int statusResId) {
         this.appName = appName;
-        this.statusLog = statusLog;
+        this.statusResId = statusResId;
         this.isComplete = false;
+    }
+
+    public ScanJob(String appName, String rawStatusLog) {
+        this.appName = appName;
+        this.rawStatusLog = rawStatusLog;
+        this.isComplete = false;
+    }
+
+    public String getApkPath() {
+        return apkPath;
+    }
+
+    public void setApkPath(String apkPath) {
+        this.apkPath = apkPath;
+    }
+
+    public String getLocalizedStatus(Context context) {
+        if (statusResId != 0) {
+            if (statusArg != null) {
+                return context.getString(statusResId, statusArg);
+            }
+            return context.getString(statusResId);
+        }
+        if (rawStatusLog != null) {
+            int resId = context.getResources().getIdentifier(rawStatusLog, "string", context.getPackageName());
+            if (resId != 0) {
+                return context.getString(resId);
+            }
+            return rawStatusLog;
+        }
+        return "";
     }
 
     public String getAppName() {
         return appName;
     }
 
-    public String getStatusLog() {
-        return statusLog;
+    public void setStatusResId(int statusResId) {
+        this.statusResId = statusResId;
+        this.rawStatusLog = null;
+        this.statusArg = null;
     }
 
-    public void setStatusLog(String statusLog) {
-        this.statusLog = statusLog;
+    public void setStatusResId(int statusResId, String formatArg) {
+        this.statusResId = statusResId;
+        this.statusArg = formatArg;
+        this.rawStatusLog = null;
+    }
+
+    public void setStatusLog(String rawStatusLog) {
+        this.rawStatusLog = rawStatusLog;
+        this.statusResId = 0;
+        this.statusArg = null;
     }
 
     public boolean isComplete() {

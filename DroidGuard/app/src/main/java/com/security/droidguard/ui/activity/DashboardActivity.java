@@ -45,12 +45,7 @@ public class DashboardActivity extends AppCompatActivity {
 
         MaterialButton btnLanguageToggle = findViewById(R.id.btnLanguageToggle);
         btnLanguageToggle.setOnClickListener(v -> {
-            LocaleListCompat currentLocales = AppCompatDelegate.getApplicationLocales();
-
-            String currentLocale = "en"; // Default fallback
-            if (!currentLocales.isEmpty() && currentLocales.get(0) != null) {
-                currentLocale = currentLocales.get(0).getLanguage();
-            }
+            String currentLocale = getResources().getConfiguration().getLocales().get(0).getLanguage();
 
             String targetLocale = currentLocale.equals("ro") ? "en" : "ro";
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(targetLocale));
@@ -107,7 +102,6 @@ public class DashboardActivity extends AppCompatActivity {
 
             if (activeCount > 0) {
                 cardActiveScan.setVisibility(View.VISIBLE);
-                // Dynamically load the translated string with the count inserted
                 textScanningAppName.setText(getString(R.string.active_scans_count, activeCount));
             } else {
                 cardActiveScan.setVisibility(View.GONE);
@@ -115,7 +109,6 @@ public class DashboardActivity extends AppCompatActivity {
 
             if (completedCount > 0) {
                 cardCompletedScans.setVisibility(View.VISIBLE);
-                // Dynamically load the translated string with the count inserted
                 textCompletedTitle.setText(getString(R.string.reports_ready_count, completedCount));
             } else {
                 cardCompletedScans.setVisibility(View.GONE);

@@ -69,4 +69,8 @@
     <string name="status_initializing">Se inițializează scanarea…</string>
 
     <string name="status_analyzing_time">Analizare… %1$s</string>
+
+    <string name="retry_scan_title">Scanare eșuată</string>
+    <string name="retry_scan_message">Analiza pentru %1$s a eșuat. Ce doriți să faceți?</string>
+    <string name="action_retry">Reîncearcă</string>
 </resources>

@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.ProgressViewHolder> {
-
     private List<ScanJob> scanJobs = new ArrayList<>();
 
     public void updateData(List<ScanJob> newJobs) {
@@ -44,7 +43,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         ScanJob job = scanJobs.get(position);
 
         holder.textAppName.setText(job.getAppName());
-        holder.textStatusLog.setText(job.getStatusLog());
+        holder.textStatusLog.setText(job.getLocalizedStatus(holder.itemView.getContext()));
 
         if (job.isComplete()) {
             holder.progressSpinner.setVisibility(View.GONE);
@@ -56,17 +55,63 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
             holder.btnCancelScan.setVisibility(android.view.View.VISIBLE);
         }
 
+        // Tap
         holder.itemView.setOnClickListener(v -> {
-            if (job.isComplete() && job.getJsonReport() != null) {
+            // A failed scan is complete but has no generated report
+            boolean isFailed = job.isComplete() && job.getJsonReport() == null;
+
+            if (isFailed) {
+                // Tap on a failed scan
+                new MaterialAlertDialogBuilder(v.getContext())
+                        .setTitle(v.getContext().getString(R.string.retry_scan_title))
+                        .setMessage(v.getContext().getString(R.string.retry_scan_message, job.getAppName()))
+                        .setPositiveButton(v.getContext().getString(R.string.action_retry), (dialog, which) -> {
+                            // Clear the failed history first
+                            ScanManager.getInstance().deleteScanHistory(
+                                    v.getContext(),
+                                    job.getAppName(),
+                                    job.isComplete()
+                            );
+
+                            // Trigger the scan again
+                            String savedApkPath = job.getApkPath();
+                            if (savedApkPath != null) {
+                                ScanManager.getInstance().startScan(savedApkPath, job.getAppName());
+                            } else {
+                                Toast.makeText(
+                                        v.getContext(),
+                                        "APK path unavailable. Please initiate a new scan from the apps list.",
+                                        Toast.LENGTH_LONG
+                                ).show();
+                            }
+                        })
+                        .setNeutralButton(v.getContext().getString(R.string.action_delete), (dialog, which) -> {
+                            ScanManager.getInstance().deleteScanHistory(
+                                    v.getContext(),
+                                    job.getAppName(),
+                                    job.isComplete()
+                            );
+                        })
+                        .setNegativeButton(
+                                v.getContext().getString(R.string.action_cancel),
+                                null
+                        )
+                        .show();
+            } else if (job.isComplete() && job.getJsonReport() != null) {
                 Intent intent = new Intent(v.getContext(), ReportActivity.class);
                 intent.putExtra("APP_NAME", job.getAppName());
                 intent.putExtra("JSON_REPORT", job.getJsonReport());
                 v.getContext().startActivity(intent);
             } else {
-                Toast.makeText(v.getContext(), v.getContext().getString(R.string.toast_analysis_running), Toast.LENGTH_SHORT).show();
+                Toast.makeText(
+                        v.getContext(),
+                        v.getContext().getString(R.string.toast_analysis_running),
+                        Toast.LENGTH_SHORT
+                ).show();
             }
         });
 
+        // Long press
         holder.itemView.setOnLongClickListener(v -> {
             new MaterialAlertDialogBuilder(v.getContext())
                     .setTitle(v.getContext().getString(R.string.delete_record_title))
@@ -84,6 +129,7 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
             return true;
         });
 
+        // Cancel
         holder.btnCancelScan.setOnClickListener(v -> {
             new MaterialAlertDialogBuilder(v.getContext())
                     .setTitle(v.getContext().getString(R.string.cancel_analysis_title))
@@ -97,11 +143,6 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                     .show();
         });
     }
-
-    public void refresh() {
-        notifyDataSetChanged();
-    }
-
 
     @Override
     public int getItemCount() {
