@@ -1,12 +1,10 @@
 {
   "default": "medium",
   "overrides": {
-    "android_meterpreter": "low",
     "finspy": "low",
     "Trojan_Dendroid": "low"
   },
   "_downgrade_notes": {
-    "android_meterpreter": "Uses too common terms (e.g. 'eval'), generating false alarms on most legitimate APKs",
     "finspy": "Detects standard structure of large ZIP archives, not specific behavior of FinSpy malware",
     "Trojan_Dendroid": "Relies on generic PHP web routes (e.g. /get.php) commonly used by harmless applications"
   }

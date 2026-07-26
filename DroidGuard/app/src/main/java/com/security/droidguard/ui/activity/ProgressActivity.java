@@ -1,14 +1,16 @@
 package com.security.droidguard.ui.activity;
 
 import android.content.Intent;
-import android.content.res.Configuration;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.textfield.TextInputEditText;
 import com.security.droidguard.R;
 import com.security.droidguard.network.ScanManager;
 import com.security.droidguard.ui.adapter.ProgressAdapter;
@@ -38,6 +40,26 @@ public class ProgressActivity extends AppCompatActivity {
 
         adapter = new ProgressAdapter();
         recyclerActiveScans.setAdapter(adapter);
+
+        TextInputEditText searchInput = findViewById(R.id.searchProgressInput);
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // Not needed
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (adapter != null) {
+                    adapter.filter(s.toString());
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                // Not needed
+            }
+        });
 
         ScanManager.getInstance().getActiveScans().observe(this, scanJobs -> {
             adapter.updateData(scanJobs);

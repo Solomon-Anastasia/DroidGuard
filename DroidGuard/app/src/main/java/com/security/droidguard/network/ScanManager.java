@@ -144,7 +144,6 @@ public class ScanManager {
                 if (status.startsWith("JOB_ID_ATTACHED:")) {
                     String savedJobId = status.split(":")[1];
 
-                    // Unified dbExecutor
                     dbExecutor.execute(() -> {
                         database.scanHistoryDao().deleteByAppName(appName);
 
@@ -156,8 +155,6 @@ public class ScanManager {
                     });
                 } else {
                     newJob.setStatusLog(status);
-
-                    // Keep postValue since callbacks are in the background
                     activeScansLiveData.postValue(new ArrayList<>(currentScans));
                 }
             }
@@ -261,7 +258,7 @@ public class ScanManager {
             activeHandles.remove(appNameToDelete);
         }
 
-        // Remove from list immediately on the main thread
+        // Remove from list on the main thread
         for (int i = 0; i < currentScans.size(); i++) {
             if (currentScans.get(i).getAppName().equals(appNameToDelete)) {
                 currentScans.remove(i);

@@ -57,6 +57,7 @@ def process_analysis_job(ch, method, _properties, body):
 
             try:
                 final_payload = result_queue.get(timeout=3)
+                break
             except queue.Empty:
                 continue
             except Exception as e:

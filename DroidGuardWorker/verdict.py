@@ -42,7 +42,7 @@ SECONDARY_WEIGHT = 0.15
 
 # Packing/obfuscation is never malicious alone, it only sharpens a verdict that
 # already has a real malicious behaviour behind it
-EVASION_AMPLIFIER = 1.15
+EVASION_AMPLIFIER = 1.05
 
 # Behaviours
 B_SMS = "sms_abuse"
@@ -56,8 +56,8 @@ B_INTEGRITY = "integrity_anomaly"
 B_EVASION = "evasion"
 
 # Behaviours that indicate malice and may get a malicious verdict
-STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_DYNAMIC, B_EXFIL, B_SIGNATURE}
-CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY}
+STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_EXFIL, B_SIGNATURE}
+CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY, B_DYNAMIC}
 
 
 def _is_context(behavior: str, interception_present: bool) -> bool:

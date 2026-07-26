@@ -73,4 +73,38 @@
     <string name="retry_scan_title">Scanare eșuată</string>
     <string name="retry_scan_message">Analiza pentru %1$s a eșuat. Ce doriți să faceți?</string>
     <string name="action_retry">Reîncearcă</string>
+
+    <string name="detailed_findings_title">Rezultat</string>
+    <string name="threat_dangerous_permission_combo">Combinație periculoasă de permisiuni</string>
+    <string name="threat_exported_component_without_permission">Componentă exportată neprotejată</string>
+    <string name="threat_suspicious_api_call">Activitate API suspectă</string>
+    <string name="threat_certificate_anomaly">Anomalie a certificatului</string>
+    <string name="threat_suspicious_string">Șir de caractere suspect</string>
+    <string name="threat_sms_interception">Capacitate de interceptare SMS</string>
+
+    <string name="threat_obfuscation">Ofuscare cod / Pachet protejat</string>
+
+    <string name="threat_behavior_sms_abuse">Abuz SMS / Toll fraud</string>
+    <string name="threat_behavior_overlay_attack">Atac de tip overlay</string>
+    <string name="threat_behavior_dynamic_payload">Încărcare dinamică de cod</string>
+    <string name="threat_behavior_data_exfiltration">Exfiltrare de date</string>
+    <string name="threat_behavior_known_signature">Semnătură de amenințare cunoscută</string>
+    <string name="threat_behavior_persistence">Persistență la pornire</string>
+    <string name="threat_behavior_device_fingerprinting">Amprentare dispozitiv (fingerprinting)</string>
+
+    <string name="behavior_score_detail">Scor de impact: %s</string>
+    <string name="corroborated_tag">coroborat pe mai multe canale</string>
+    <string name="evasion_detected_title">Tehnici de evasivitate detectate</string>
+    <string name="evasion_detected_detail">Aplicația folosește ofuscare sau reflecție pentru a îngreuna analiza</string>
+    <string name="yara_match_title">Potrivire regulă YARA: %s</string>
+    <string name="yara_match_detail">Fișier: %1$s | Încredere: %2$s</string>
+
+    <string name="threat_behavior_integrity_anomaly">Anomalie de integritate</string>
+    <string name="threat_behavior_evasion">Tehnici de evasivitate</string>
+    <string name="component_detail_format">Nume: %1$s\nTip: %2$s</string>
+
+    <string name="category_behavior_signals">Semnale de risc comportamental</string>
+    <string name="category_yara_matches">Potriviri reguli YARA</string>
+
+    <string name="scan_duration_label">Durata scanării: %s</string>
 </resources>

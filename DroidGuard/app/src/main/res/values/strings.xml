@@ -72,4 +72,38 @@
     <string name="retry_scan_title">Scan failed</string>
     <string name="retry_scan_message">The analysis for %1$s failed. What would you like to do?</string>
     <string name="action_retry">Retry</string>
+
+    <string name="detailed_findings_title">Result</string>
+    <string name="threat_dangerous_permission_combo">Dangerous permission combination</string>
+    <string name="threat_exported_component_without_permission">Unprotected exported component</string>
+    <string name="threat_suspicious_api_call">Suspicious API activity</string>
+    <string name="threat_certificate_anomaly">Certificate anomaly</string>
+    <string name="threat_suspicious_string">Suspicious hardcoded string</string>
+    <string name="threat_sms_interception">SMS interception capability</string>
+
+    <string name="threat_obfuscation">Code obfuscation / Packing</string>
+
+    <string name="threat_behavior_sms_abuse">SMS abuse / Toll fraud</string>
+    <string name="threat_behavior_overlay_attack">Overlay attack</string>
+    <string name="threat_behavior_dynamic_payload">Dynamic code payload</string>
+    <string name="threat_behavior_data_exfiltration">Data exfiltration</string>
+    <string name="threat_behavior_known_signature">Known threat signature</string>
+    <string name="threat_behavior_persistence">Boot persistence</string>
+    <string name="threat_behavior_device_fingerprinting">Device fingerprinting</string>
+
+    <string name="behavior_score_detail">Impact score: %s</string>
+    <string name="corroborated_tag">corroborated across channels</string>
+    <string name="evasion_detected_title">Evasion techniques detected</string>
+    <string name="evasion_detected_detail">App uses obfuscation or reflection to hinder analysis</string>
+    <string name="yara_match_title">YARA rule match: %s</string>
+    <string name="yara_match_detail">File: %1$s | Confidence: %2$s</string>
+
+    <string name="threat_behavior_integrity_anomaly">Integrity anomaly</string>
+    <string name="threat_behavior_evasion">Evasion techniques</string>
+    <string name="component_detail_format">Name: %1$s\nType: %2$s</string>
+
+    <string name="category_behavior_signals">Behavioral risk signals</string>
+    <string name="category_yara_matches">YARA signature matches</string>
+
+    <string name="scan_duration_label">Scan time: %s</string>
 </resources>

@@ -24,7 +24,7 @@ DANGEROUS_PERMISSION_COMBOS = [
     {
         "name": "SMS sending + boot persistence (classic banker/toll-fraud pattern)",
         "permissions": {"SEND_SMS", "RECEIVE_BOOT_COMPLETED"},
-        "severity": "high",
+        "severity": "medium",
     },
     # Bank trojan
     {
@@ -152,7 +152,7 @@ ENTROPY_THRESHOLD = 7.3
 SMS_RECEIVED_ACTION = "android.provider.Telephony.SMS_RECEIVED"
 
 # Legit SMS receivers leave it at the default 0
-SMS_RECEIVER_PRIORITY_THRESHOLD = 100
+SMS_RECEIVER_PRIORITY_THRESHOLD = 999
 
 
 # Get only permission name

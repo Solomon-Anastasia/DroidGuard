@@ -126,9 +126,11 @@ public class AnalysisProxy {
             JSONObject statusJson = new JSONObject(statusResponseStr);
             String currentStatus = statusJson.getString("status");
 
-            if ("COMPLETED".equalsIgnoreCase(currentStatus) || "FAILED".equalsIgnoreCase(currentStatus) || "ABORTED".equalsIgnoreCase(currentStatus)) {
-                Log.d(TAG, "Job already finished while app was disconnected.");
-                processServerResponse(statusJson, callback, cancelled);
+            if ("COMPLETED".equalsIgnoreCase(currentStatus) ||
+                    "FAILED".equalsIgnoreCase(currentStatus) ||
+                    "ABORTED".equalsIgnoreCase(currentStatus)) {
+                Log.d(TAG, "Job already finished while app was disconnected");
+                processServerResponse(statusJson, callback, cancelled, startTime);
                 return;
             }
         } catch (Exception e) {
@@ -172,7 +174,7 @@ public class AnalysisProxy {
 
                 try {
                     JSONObject json = new JSONObject(text);
-                    processServerResponse(json, callback, cancelled);
+                    processServerResponse(json, callback, cancelled, startTime);
                 } catch (Exception e) {
                     postError(callback, cancelled, "Failed to parse server response");
                 }
@@ -195,17 +197,32 @@ public class AnalysisProxy {
         });
     }
 
-    private void processServerResponse(JSONObject json, AnalysisCallback callback, AtomicBoolean cancelled) {
+    private void processServerResponse(JSONObject json, AnalysisCallback callback, AtomicBoolean cancelled, long startTime) {
         String status = json.optString("status");
 
         if ("COMPLETED".equalsIgnoreCase(status)) {
+            long elapsedMillis = System.currentTimeMillis() - startTime;
+            long seconds = (elapsedMillis / 1_000) % 60;
+            long minutes = (elapsedMillis / (1_000 * 60)) % 60;
+            String scanDuration = String.format("%02d:%02d", minutes, seconds);
+
             JSONObject reportObj = json.optJSONObject("yaraReport");
-            String reportStr = (reportObj != null) ? reportObj.toString() : "{}";
+            if (reportObj == null) {
+                reportObj = new JSONObject();
+            }
+
+            try {
+                reportObj.put("scan_duration_formatted", scanDuration);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to inject scan duration", e);
+            }
+
+            String reportStr = reportObj.toString();
             postSuccess(callback, cancelled, reportStr);
         } else if ("FAILED".equalsIgnoreCase(status)) {
             postError(callback, cancelled, "Analysis worker failed to process the APK!");
         } else if ("ABORTED".equalsIgnoreCase(status)) {
-            postError(callback, cancelled, "Scan was cancelled by the server.");
+            postError(callback, cancelled, "Scan was cancelled by the server");
         }
     }
 

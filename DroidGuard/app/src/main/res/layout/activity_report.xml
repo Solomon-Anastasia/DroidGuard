@@ -106,12 +106,20 @@
                         android:background="?attr/colorOutlineVariant" />
 
                     <TextView
-                        android:id="@+id/textDetails"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/loading_summary"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="13sp" />
+                        android:text="@string/detailed_findings_title"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="16dp" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutFindingsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

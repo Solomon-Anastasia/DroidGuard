@@ -15,7 +15,7 @@
     <color name="report_safe_text">#81C784</color>
 
     <color name="report_suspicious_bg">#4D2600</color>
-    <color name="report_suspicious_text">#FFB74D</color>
+    <color name="report_suspicious_text">#FFC107</color>
 
     <color name="report_malicious_bg">#4A0000</color>
     <color name="report_malicious_text">#E57373</color>

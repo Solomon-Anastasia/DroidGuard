@@ -23,9 +23,28 @@ import java.util.List;
 
 public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.ProgressViewHolder> {
     private List<ScanJob> scanJobs = new ArrayList<>();
+    private List<ScanJob> scanJobsFull = new ArrayList<>();
+    private String currentQuery = "";
 
     public void updateData(List<ScanJob> newJobs) {
-        this.scanJobs = newJobs;
+        this.scanJobsFull = new ArrayList<>(newJobs);
+        filter(currentQuery);
+    }
+
+    public void filter(String query) {
+        this.currentQuery = (query != null) ? query : "";
+        scanJobs.clear();
+
+        if (currentQuery.trim().isEmpty()) {
+            scanJobs.addAll(scanJobsFull);
+        } else {
+            String filterPattern = currentQuery.toLowerCase().trim();
+            for (ScanJob job : scanJobsFull) {
+                if (job.getAppName() != null && job.getAppName().toLowerCase().contains(filterPattern)) {
+                    scanJobs.add(job);
+                }
+            }
+        }
         notifyDataSetChanged();
     }
 
