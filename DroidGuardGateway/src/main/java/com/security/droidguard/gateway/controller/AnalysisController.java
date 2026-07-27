@@ -130,7 +130,7 @@ public class AnalysisController {
                     "yaraReport", request.getYaraReport()
             );
 
-            String jsonPayload = null;
+            String jsonPayload;
             try {
                 jsonPayload = objectMapper.writeValueAsString(responseMap);
                 webSocketHandler.sendPayloadToClient(jobIdStr, jsonPayload);

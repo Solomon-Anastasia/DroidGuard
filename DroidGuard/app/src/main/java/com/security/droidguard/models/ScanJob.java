@@ -5,21 +5,17 @@ import android.content.Context;
 public class ScanJob {
     private String appName;
     private String apkPath;
-    private int statusResId = 0;
     private String statusArg = null;
     private String rawStatusLog = null;
-    private boolean isComplete;
     private String jsonReport;
+
+    // Keep track of the one particular object when translating
+    private int statusResId;
+    private boolean isComplete;
 
     public ScanJob(String appName, int statusResId) {
         this.appName = appName;
         this.statusResId = statusResId;
-        this.isComplete = false;
-    }
-
-    public ScanJob(String appName, String rawStatusLog) {
-        this.appName = appName;
-        this.rawStatusLog = rawStatusLog;
         this.isComplete = false;
     }
 
@@ -38,6 +34,8 @@ public class ScanJob {
             }
             return context.getString(statusResId);
         }
+
+        // Report comes from gateway in json file, not all can be translated
         if (rawStatusLog != null) {
             int resId = context.getResources().getIdentifier(rawStatusLog, "string", context.getPackageName());
             if (resId != 0) {
@@ -45,6 +43,7 @@ public class ScanJob {
             }
             return rawStatusLog;
         }
+
         return "";
     }
 

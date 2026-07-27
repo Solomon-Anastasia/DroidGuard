@@ -8,6 +8,7 @@ import android.text.TextWatcher;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.textfield.TextInputEditText;
@@ -33,6 +34,12 @@ public class ProgressActivity extends AppCompatActivity {
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
+        });
+
+        SwipeRefreshLayout swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            ScanManager.getInstance().syncActiveScans();
+            swipeRefreshLayout.setRefreshing(false);
         });
 
         recyclerActiveScans = findViewById(R.id.recyclerActiveScans);
@@ -64,5 +71,11 @@ public class ProgressActivity extends AppCompatActivity {
         ScanManager.getInstance().getActiveScans().observe(this, scanJobs -> {
             adapter.updateData(scanJobs);
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ScanManager.getInstance().syncActiveScans();
     }
 }

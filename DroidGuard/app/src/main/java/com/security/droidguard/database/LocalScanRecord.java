@@ -11,11 +11,12 @@ public class LocalScanRecord {
     public String appName;
     public String packageName;
     public String jsonReport;
-    public String verdict; // safe, suspicious, malicious
+    public String verdict;
     public long scanTimestamp;
     public String jobId;
 
-    public LocalScanRecord(String appName, String packageName, String jsonReport, String verdict, long scanTimestamp) {
+    public LocalScanRecord(String appName, String packageName, String jsonReport,
+                           String verdict, long scanTimestamp) {
         this.appName = appName;
         this.packageName = packageName;
         this.jsonReport = jsonReport;
