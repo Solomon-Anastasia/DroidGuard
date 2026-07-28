@@ -70,7 +70,8 @@ public class ScanManager {
                         ScanJob recoveringJob = new ScanJob(record.appName, R.string.status_recovering_scan);
                         currentScans.add(recoveringJob);
 
-                        AnalysisHandle handle = analysisProxy.resumePolling(record.jobId, record.scanTimestamp, new AnalysisCallback() {
+                        AnalysisHandle handle = analysisProxy.resumePolling(
+                                record.jobId, record.scanTimestamp, new AnalysisCallback() {
                             @Override
                             public void onProgress(String status) {
                                 // Guard against trailing progress updates after completion
@@ -151,76 +152,90 @@ public class ScanManager {
         currentScans.add(newJob);
         activeScansLiveData.setValue(new ArrayList<>(currentScans));
 
-        AnalysisHandle handle = analysisProxy.startAnalysis(apkPath, appName, new AnalysisCallback() {
-            @Override
-            public void onProgress(String status) {
-                if (newJob.isComplete())
-                    return;
+        AnalysisHandle handle = analysisProxy.startAnalysis(
+                apkPath, appName, new AnalysisCallback() {
+                    @Override
+                    public void onProgress(String status) {
+                        if (newJob.isComplete())
+                            return;
 
-                if (status.startsWith("JOB_ID_ATTACHED:")) {
-                    String savedJobId = status.split(":")[1];
+                        if (status.startsWith("JOB_ID_ATTACHED:")) {
+                            String savedJobId = status.split(":")[1];
 
-                    dbExecutor.execute(() -> {
-                        database.scanHistoryDao().deleteByAppName(appName);
-                        LocalScanRecord record = new LocalScanRecord(
-                                appName,
-                                "com.security.droidguard",
-                                "{}",
-                                "PENDING",
-                                System.currentTimeMillis()
-                        );
+                            dbExecutor.execute(() -> {
+                                database.scanHistoryDao().deleteByAppName(appName);
+                                LocalScanRecord record = new LocalScanRecord(
+                                        appName,
+                                        "com.security.droidguard",
+                                        "{}",
+                                        "PENDING",
+                                        System.currentTimeMillis()
+                                );
 
-                        record.jobId = savedJobId;
-                        database.scanHistoryDao().insert(record);
-                    });
-                } else {
-                    newJob.setStatusLog(status);
-                    activeScansLiveData.postValue(new ArrayList<>(currentScans));
-                }
-            }
+                                record.jobId = savedJobId;
+                                database.scanHistoryDao().insert(record);
+                            });
+                        } else {
+                            try {
+                                JSONObject json = new JSONObject(status);
+                                String currentStatus = json.optString("status");
 
-            @Override
-            public void onSuccess(String jsonReport) {
-                activeHandles.remove(appName);
-                newJob.setStatusResId(R.string.status_completed_report);
-                newJob.setComplete(true);
-                newJob.setJsonReport(jsonReport);
-                activeScansLiveData.postValue(new ArrayList<>(currentScans));
+                                if ("IN_PROGRESS".equals(currentStatus)) {
+                                    if (newJob.getStartTime() == 0) {
+                                        newJob.startTimer();
+                                    }
+                                    newJob.setStatusLog(String.valueOf(R.string.status_analyzing));
+                                }
+                            } catch (Exception e) {
+                                newJob.setStatusLog(status);
+                            }
 
-                dbExecutor.execute(() -> {
-                    String verdict = "safe";
-
-                    try {
-                        JSONObject json = new JSONObject(jsonReport);
-                        if (json.has("verdict")) {
-                            verdict = json.getString("verdict");
+                            activeScansLiveData.postValue(new ArrayList<>(currentScans));
                         }
-                    } catch (Exception e) {
-                        System.out.println(e.getMessage());
                     }
 
-                    database.scanHistoryDao().deleteByAppName(appName);
-                    LocalScanRecord record = new LocalScanRecord(
-                            appName,
-                            "com.security.droidguard",
-                            jsonReport,
-                            verdict,
-                            System.currentTimeMillis()
-                    );
-                    database.scanHistoryDao().insert(record);
+                    @Override
+                    public void onSuccess(String jsonReport) {
+                        activeHandles.remove(appName);
+                        newJob.setStatusResId(R.string.status_completed_report);
+                        newJob.setComplete(true);
+                        newJob.setJsonReport(jsonReport);
+                        activeScansLiveData.postValue(new ArrayList<>(currentScans));
+
+                        dbExecutor.execute(() -> {
+                            String verdict = "safe";
+
+                            try {
+                                JSONObject json = new JSONObject(jsonReport);
+                                if (json.has("verdict")) {
+                                    verdict = json.getString("verdict");
+                                }
+                            } catch (Exception e) {
+                                System.out.println(e.getMessage());
+                            }
+
+                            database.scanHistoryDao().deleteByAppName(appName);
+                            LocalScanRecord record = new LocalScanRecord(
+                                    appName,
+                                    "com.security.droidguard",
+                                    jsonReport,
+                                    verdict,
+                                    System.currentTimeMillis()
+                            );
+                            database.scanHistoryDao().insert(record);
+                        });
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        activeHandles.remove(appName);
+                        newJob.setStatusResId(R.string.status_failed, error);
+                        newJob.setComplete(true);
+                        activeScansLiveData.postValue(new ArrayList<>(currentScans));
+
+                        cleanupFailedScan(appName);
+                    }
                 });
-            }
-
-            @Override
-            public void onError(String error) {
-                activeHandles.remove(appName);
-                newJob.setStatusResId(R.string.status_failed, error);
-                newJob.setComplete(true);
-                activeScansLiveData.postValue(new ArrayList<>(currentScans));
-
-                cleanupFailedScan(appName);
-            }
-        });
 
         activeHandles.put(appName, handle);
     }
@@ -241,7 +256,8 @@ public class ScanManager {
                         String status = jsonResponse.optString("status", "PENDING");
 
                         if ("COMPLETED".equals(status)) {
-                            String jsonReport = jsonResponse.optString("report", "{}");
+                            JSONObject yaraReportObj = jsonResponse.optJSONObject("yaraReport");
+                            String jsonReport = (yaraReportObj != null) ? yaraReportObj.toString() : "{}";
 
                             job.setStatusResId(R.string.status_completed_report);
                             job.setComplete(true);

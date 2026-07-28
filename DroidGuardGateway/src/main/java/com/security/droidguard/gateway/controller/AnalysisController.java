@@ -173,7 +173,6 @@ public class AnalysisController {
 
         try {
             jobRoutingService.updateJobStatus(jobId, "ABORTED");
-
             webSocketHandler.sendPayloadToClient(String.valueOf(jobId), "{\"status\":\"ABORTED\"}");
 
             return ResponseEntity.ok().build();
@@ -190,5 +189,21 @@ public class AnalysisController {
 
         return jobOpt.map(analysisJob -> ResponseEntity.ok(analysisJob.getStatus()))
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/internal/status/started")
+    public ResponseEntity<?> reportStarted(@RequestBody WorkerCallbackRequest request) {
+        logger.info("Worker started scanning job ID: {}", request.getJobId());
+        try {
+            jobRoutingService.updateJobStatus(request.getJobId(), "IN_PROGRESS");
+
+            String payload = "{\"status\":\"IN_PROGRESS\"}";
+            webSocketHandler.sendProgressToClient(String.valueOf(request.getJobId()), payload);
+
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Failed to update job {} to IN_PROGRESS", request.getJobId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

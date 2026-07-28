@@ -88,5 +88,26 @@ class GatewayClient:
             logger.error(f"Gateway rejected failure report for job {job_id}: {str(e)}")
             return False
 
+    def notify_job_started(self, job_id: int) -> bool:
+        url = f"{self.base_url}/status/started"
+        payload = {
+            "jobId": job_id
+        }
+
+        try:
+            logger.info(f"Notifying Gateway that job {job_id} is IN_PROGRESS...")
+            response = requests.post(url, json=payload, timeout=5)
+
+            if response.status_code == 200:
+                logger.info(f"Successfully notified IN_PROGRESS for job {job_id}.")
+                return True
+            else:
+                logger.warning(f"Failed to notify IN_PROGRESS. Status code: {response.status_code}")
+                return False
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Connection error while notifying job {job_id} start: {e}")
+            return False
+
 
 gateway_client = GatewayClient()

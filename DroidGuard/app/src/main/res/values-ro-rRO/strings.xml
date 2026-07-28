@@ -107,4 +107,9 @@
     <string name="category_yara_matches">Potriviri reguli YARA</string>
 
     <string name="scan_duration_label">Durata scanării: %s</string>
+    <string name="finalized_reports">Rapoarte finalizate</string>
+    <string name="current_scanning">În curs de scanare</string>
+
+    <string name="status_analyzing">Analizare…</string>
+    <string name="status_waiting">În așteptare…</string>
 </resources>

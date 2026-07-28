@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -126,8 +127,10 @@ public class AnalysisProxy {
         return handle;
     }
 
-    private void startWebSocketListening(String jobId, long startTime,
+    private void startWebSocketListening(String jobId, long originalStartTime,
                                          AnalysisCallback callback, AtomicBoolean cancelled) {
+        boolean alreadyScanning = false;
+
         try {
             String statusResponseStr = apiClient.pollStatus(jobId);
             JSONObject statusJson = new JSONObject(statusResponseStr);
@@ -137,25 +140,38 @@ public class AnalysisProxy {
                     "FAILED".equalsIgnoreCase(currentStatus) ||
                     "ABORTED".equalsIgnoreCase(currentStatus)) {
                 Log.d(TAG, "Job already finished while app was disconnected");
-                processServerResponse(statusJson, callback, cancelled, startTime);
+                processServerResponse(statusJson, callback, cancelled, originalStartTime);
                 return;
+            } else if ("IN_PROGRESS".equalsIgnoreCase(currentStatus)) {
+                alreadyScanning = true;
             }
         } catch (Exception e) {
             Log.w(TAG, "Initial status check failed, proceeding to WebSocket connection...");
         }
 
         AtomicBoolean serverResponded = new AtomicBoolean(false);
+        AtomicLong realScanningStartTime = new AtomicLong(alreadyScanning ? originalStartTime : 0);
+
         executor.execute(() -> {
             while (!serverResponded.get() && !cancelled.get()) {
-                long elapsedMillis = System.currentTimeMillis() - startTime;
-                long seconds = (elapsedMillis / 1_000) % 60;
-                long minutes = (elapsedMillis / (1_000 * 60)) % 60;
-                String timeFormatted = String.format(Locale.US, "%02d:%02d", minutes, seconds);
+                long start = realScanningStartTime.get();
 
-                postProgress(callback,
-                        cancelled,
-                        context.getString(R.string.status_analyzing_time, timeFormatted)
-                );
+                if (start > 0) {
+                    long elapsedMillis = System.currentTimeMillis() - start;
+                    long seconds = (elapsedMillis / 1_000) % 60;
+                    long minutes = (elapsedMillis / (1_000 * 60)) % 60;
+                    String timeFormatted = String.format(
+                            Locale.US, "%02d:%02d",
+                            minutes, seconds
+                    );
+
+                    postProgress(callback,
+                            cancelled,
+                            context.getString(R.string.status_analyzing_time, timeFormatted)
+                    );
+                } else {
+                    postProgress(callback, cancelled, context.getString(R.string.status_waiting));
+                }
 
                 try {
                     Thread.sleep(1_000);
@@ -181,16 +197,27 @@ public class AnalysisProxy {
             public void onMessage(@NonNull WebSocket webSocket,
                                   @NonNull String text) {
                 Log.d(TAG, "WebSocket received payload: " + text);
-                serverResponded.set(true);
 
                 try {
                     JSONObject json = new JSONObject(text);
-                    processServerResponse(json, callback, cancelled, startTime);
+                    String status = json.optString("status");
+
+                    if ("IN_PROGRESS".equalsIgnoreCase(status)) {
+                        realScanningStartTime.set(System.currentTimeMillis());
+                        postProgress(callback, cancelled, text);
+                    } else {
+                        serverResponded.set(true);
+                        processServerResponse(
+                                json,
+                                callback,
+                                cancelled,
+                                realScanningStartTime.get() > 0 ?
+                                        realScanningStartTime.get() : originalStartTime);
+                        webSocket.close(1_000, "Received final report");
+                    }
                 } catch (Exception e) {
                     postError(callback, cancelled, "Failed to parse server response");
                 }
-
-                webSocket.close(1_000, "Received final report");
             }
 
             @Override
@@ -198,9 +225,15 @@ public class AnalysisProxy {
                                   @NonNull Throwable t,
                                   Response response) {
                 Log.w(TAG, "WebSocket dropped, attempting to reconnect", t);
-                if (cancelled.get()) return;
 
-                startWebSocketListening(jobId, startTime, callback, cancelled);
+                serverResponded.set(true);
+
+                if (cancelled.get())
+                    return;
+
+                long timeToPass = realScanningStartTime.get() > 0 ?
+                        realScanningStartTime.get() : originalStartTime;
+                startWebSocketListening(jobId, timeToPass, callback, cancelled);
             }
 
             @Override

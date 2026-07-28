@@ -106,4 +106,9 @@
     <string name="category_yara_matches">YARA signature matches</string>
 
     <string name="scan_duration_label">Scan time: %s</string>
+    <string name="finalized_reports">Finalized reports</string>
+    <string name="current_scanning">Currently scanning</string>
+
+    <string name="status_analyzing">Analyzing…</string>
+    <string name="status_waiting">Waiting…</string>
 </resources>

@@ -9,6 +9,8 @@ public class ScanJob {
     private String rawStatusLog = null;
     private String jsonReport;
 
+    private long startTime = 0;
+
     // Keep track of the one particular object when translating
     private int statusResId;
     private boolean isComplete;
@@ -17,6 +19,14 @@ public class ScanJob {
         this.appName = appName;
         this.statusResId = statusResId;
         this.isComplete = false;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void startTimer() {
+        this.startTime = System.currentTimeMillis();
     }
 
     public String getApkPath() {

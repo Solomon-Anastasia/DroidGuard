@@ -35,6 +35,9 @@ def process_analysis_job(ch, method, _properties, body):
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
+        logger.info(f"Notifying Gateway that job {job_id} has started (IN_PROGRESS)...")
+        gateway_client.notify_job_started(job_id)
+
         # Help to share data between consumer and analyzer
         result_queue = multiprocessing.Queue()
         analysis_process = multiprocessing.Process(
