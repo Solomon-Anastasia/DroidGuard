@@ -112,4 +112,5 @@
 
     <string name="status_analyzing">Analizare…</string>
     <string name="status_waiting">În așteptare…</string>
+    <string name="show_all_apps">Toate</string>
 </resources>

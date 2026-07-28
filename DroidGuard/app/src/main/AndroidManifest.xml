@@ -45,6 +45,11 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize">
         </activity>
+
+        <activity
+            android:name=".ui.activity.FilteredAppsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.DroidGuard" />
     </application>
 
 </manifest>

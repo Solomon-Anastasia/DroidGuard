@@ -111,4 +111,5 @@
 
     <string name="status_analyzing">Analyzing…</string>
     <string name="status_waiting">Waiting…</string>
+    <string name="show_all_apps">All</string>
 </resources>

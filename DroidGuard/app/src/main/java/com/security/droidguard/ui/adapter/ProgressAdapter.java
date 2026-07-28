@@ -25,10 +25,50 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
     private List<ScanJob> scanJobs = new ArrayList<>();
     private List<ScanJob> scanJobsFull = new ArrayList<>();
     private String currentQuery = "";
+    private String currentVerdictFilter = "all";
 
     public void updateData(List<ScanJob> newJobs) {
         this.scanJobsFull = new ArrayList<>(newJobs);
-        filter(currentQuery);
+//        filter(currentQuery);
+        applyFilters();
+    }
+
+    public void setFilter(String query, String verdictFilter) {
+        if (query != null) this.currentQuery = query;
+        if (verdictFilter != null) this.currentVerdictFilter = verdictFilter;
+        applyFilters();
+    }
+
+    private void applyFilters() {
+        scanJobs.clear();
+        String filterPattern = currentQuery.toLowerCase().trim();
+
+        for (ScanJob job : scanJobsFull) {
+            boolean matchesSearch = job.getAppName() != null &&
+                    job.getAppName().toLowerCase().contains(filterPattern);
+
+            boolean matchesVerdict = true;
+            if (!"all".equals(currentVerdictFilter)) {
+                if (!job.isComplete()) {
+                    matchesVerdict = false;
+                } else {
+                    String jobVerdict = "clean";
+                    try {
+                        if (job.getJsonReport() != null) {
+                            org.json.JSONObject json = new org.json.JSONObject(job.getJsonReport());
+                            jobVerdict = json.optString("verdict", "clean");
+                        }
+                    } catch (Exception ignored) {}
+
+                    matchesVerdict = jobVerdict.equalsIgnoreCase(currentVerdictFilter);
+                }
+            }
+
+            if (matchesSearch && matchesVerdict) {
+                scanJobs.add(job);
+            }
+        }
+        notifyDataSetChanged();
     }
 
     public void filter(String query) {

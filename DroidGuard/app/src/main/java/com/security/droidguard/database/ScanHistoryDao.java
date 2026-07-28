@@ -11,7 +11,7 @@ public interface ScanHistoryDao {
     @Insert
     void insert(LocalScanRecord record);
 
-    @Query("SELECT COUNT(*) FROM scan_history")
+    @Query("SELECT COUNT(*) FROM scan_history WHERE verdict NOT IN ('PENDING', 'FAILED')")
     int getTotalScans();
 
     @Query("SELECT COUNT(*) FROM scan_history WHERE verdict = 'safe' OR verdict = 'clean'")
