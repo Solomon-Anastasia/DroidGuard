@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat;
 
 import com.security.droidguard.R;
 import com.security.droidguard.ui.activity.ReportActivity;
+import com.security.droidguard.ui.activity.DashboardActivity;
 
 public class NotificationHelper {
     private static final String CHANNEL_ID = "scan_results_channel";
@@ -21,7 +22,7 @@ public class NotificationHelper {
             String verdict,
             String jsonReport
     ) {
-        NotificationManager notificationManager = 
+        NotificationManager notificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         NotificationChannel channel = new NotificationChannel(
@@ -32,17 +33,19 @@ public class NotificationHelper {
         channel.setDescription("Notifications for completed APK scans");
         notificationManager.createNotificationChannel(channel);
 
-        // Open activity when the notification is tapped
-        Intent intent = new Intent(context, ReportActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        Intent parentIntent = new Intent(context, DashboardActivity.class);
+        parentIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-        intent.putExtra("APP_NAME", appName);
-        intent.putExtra("JSON_REPORT", jsonReport);
+        Intent reportIntent = new Intent(context, ReportActivity.class);
+        reportIntent.putExtra("APP_NAME", appName);
+        reportIntent.putExtra("JSON_REPORT", jsonReport);
 
-        PendingIntent pendingIntent = PendingIntent.getActivity(
+        Intent[] intents = { parentIntent, reportIntent };
+
+        PendingIntent pendingIntent = PendingIntent.getActivities(
                 context,
-                appName.hashCode(),
-                intent,
+                Math.abs(appName.hashCode()),
+                intents,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
@@ -58,6 +61,6 @@ public class NotificationHelper {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
-        notificationManager.notify(appName.hashCode(), builder.build());
+        notificationManager.notify(Math.abs(appName.hashCode()), builder.build());
     }
 }
