@@ -112,4 +112,6 @@
     <string name="status_analyzing">Analyzing…</string>
     <string name="status_waiting">Waiting…</string>
     <string name="show_all_apps">All</string>
+
+    <string name="try_again">APK path unavailable. Select new app</string>
 </resources>

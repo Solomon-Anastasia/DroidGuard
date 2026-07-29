@@ -127,34 +127,38 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                 // Tap on a failed scan
                 new MaterialAlertDialogBuilder(v.getContext())
                         .setTitle(v.getContext().getString(R.string.retry_scan_title))
-                        .setMessage(v.getContext().getString(R.string.retry_scan_message, job.getAppName()))
-                        .setPositiveButton(v.getContext().getString(R.string.action_retry), (dialog, which) -> {
-                            // Clear the failed history first
-                            ScanManager.getInstance().deleteScanHistory(
-                                    v.getContext(),
-                                    job.getAppName(),
-                                    job.isComplete()
-                            );
+                        .setMessage(
+                                v.getContext().getString(R.string.retry_scan_message, job.getAppName())
+                        ).setPositiveButton(
+                                v.getContext().getString(R.string.action_retry),
+                                (dialog, which) -> {
+                                    // Clear the failed history first
+                                    ScanManager.getInstance().deleteScanHistory(
+                                            v.getContext(),
+                                            job.getAppName(),
+                                            job.isComplete()
+                                    );
 
-                            // Trigger the scan again
-                            String savedApkPath = job.getApkPath();
-                            if (savedApkPath != null) {
-                                ScanManager.getInstance().startScan(savedApkPath, job.getAppName());
-                            } else {
-                                Toast.makeText(
-                                        v.getContext(),
-                                        "APK path unavailable. Please initiate a new scan from the apps list.",
-                                        Toast.LENGTH_LONG
-                                ).show();
-                            }
-                        })
-                        .setNeutralButton(v.getContext().getString(R.string.action_delete), (dialog, which) -> {
-                            ScanManager.getInstance().deleteScanHistory(
-                                    v.getContext(),
-                                    job.getAppName(),
-                                    job.isComplete()
-                            );
-                        })
+                                    // Trigger the scan again
+                                    String savedApkPath = job.getApkPath();
+                                    if (savedApkPath != null) {
+                                        ScanManager.getInstance().startScan(savedApkPath, job.getAppName());
+                                    } else {
+                                        Toast.makeText(
+                                                v.getContext(),
+                                                R.string.try_again,
+                                                Toast.LENGTH_LONG
+                                        ).show();
+                                    }
+                                })
+                        .setNeutralButton(
+                                v.getContext().getString(R.string.action_delete),
+                                (dialog, which) ->
+                                        ScanManager.getInstance().deleteScanHistory(
+                                                v.getContext(),
+                                                job.getAppName(),
+                                                job.isComplete()
+                                        ))
                         .setNegativeButton(
                                 v.getContext().getString(R.string.action_cancel),
                                 null
@@ -179,13 +183,14 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
             new MaterialAlertDialogBuilder(v.getContext())
                     .setTitle(v.getContext().getString(R.string.delete_record_title))
                     .setMessage(v.getContext().getString(R.string.delete_record_message, job.getAppName()))
-                    .setPositiveButton(v.getContext().getString(R.string.action_delete), (dialog, which) -> {
-                        ScanManager.getInstance().deleteScanHistory(
-                                v.getContext(),
-                                job.getAppName(),
-                                job.isComplete()
-                        );
-                    })
+                    .setPositiveButton(
+                            v.getContext().getString(R.string.action_delete),
+                            (dialog, which) ->
+                                    ScanManager.getInstance().deleteScanHistory(
+                                            v.getContext(),
+                                            job.getAppName(),
+                                            job.isComplete()
+                                    ))
                     .setNegativeButton(v.getContext().getString(R.string.action_cancel), null)
                     .show();
 
@@ -193,18 +198,18 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         });
 
         // Cancel
-        holder.btnCancelScan.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(v.getContext())
-                    .setTitle(v.getContext().getString(R.string.cancel_analysis_title))
-                    .setMessage(v.getContext().getString(R.string.cancel_analysis_message, job.getAppName()))
-                    .setPositiveButton(v.getContext().getString(R.string.action_abort_scan), (dialog, which) -> {
-                        ScanManager.getInstance().abortActiveScan(job.getAppName());
-                    })
-                    .setNegativeButton(v.getContext().getString(R.string.action_keep_scanning), (dialog, which) -> {
-                        dialog.dismiss();
-                    })
-                    .show();
-        });
+        holder.btnCancelScan.setOnClickListener(v ->
+                new MaterialAlertDialogBuilder(v.getContext())
+                        .setTitle(v.getContext().getString(R.string.cancel_analysis_title))
+                        .setMessage(v.getContext().getString(R.string.cancel_analysis_message, job.getAppName()))
+                        .setPositiveButton(
+                                v.getContext().getString(R.string.action_abort_scan),
+                                (dialog, which) ->
+                                        ScanManager.getInstance().abortActiveScan(job.getAppName()))
+                        .setNegativeButton(
+                                v.getContext().getString(R.string.action_keep_scanning),
+                                (dialog, which) -> dialog.dismiss())
+                        .show());
     }
 
     @Override
