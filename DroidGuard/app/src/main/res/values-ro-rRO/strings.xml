@@ -115,4 +115,11 @@
     <string name="show_all_apps">Toate</string>
 
     <string name="try_again">Cale APK indisponibila. Seletați aplicație nouă</string>
+
+    <string name="scan_completed_no_threats_detected">Scanare completă. Nu au fost detectate amenințări.</string>
+    <string name="attention_suspicious_behaviors_detected">Atenție: Au fost detectate comportamente suspecte!</string>
+    <string name="analysis_finished">"Analiză finalizată pentru "</string>
+    <string name="active_scans_notification">Scanări active</string>
+    <string name="scanning_notification">"Aplicatii active: "</string>
+    <string name="multiple_apps_notification">aplicații multiple</string>
 </resources>

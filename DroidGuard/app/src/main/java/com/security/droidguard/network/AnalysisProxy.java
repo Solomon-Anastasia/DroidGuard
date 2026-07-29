@@ -86,7 +86,7 @@ public class AnalysisProxy {
                     handle.setJobId(jobId);
 
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
-                    startWebSocketListening(jobId, System.currentTimeMillis(), callback, cancelled);
+                    startWebSocketListening(jobId, 0, callback, cancelled);
                 } else {
                     Log.d(TAG, "New file detected. Initiating multipart upload...");
 
@@ -100,8 +100,7 @@ public class AnalysisProxy {
                     handle.setJobId(jobId);
 
                     postProgress(callback, cancelled, "JOB_ID_ATTACHED:" + jobId);
-
-                    startWebSocketListening(jobId, System.currentTimeMillis(), callback, cancelled);
+                    startWebSocketListening(jobId, 0, callback, cancelled);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Analysis pipeline failed", e);
@@ -130,27 +129,49 @@ public class AnalysisProxy {
     private void startWebSocketListening(String jobId, long originalStartTime,
                                          AnalysisCallback callback, AtomicBoolean cancelled) {
         boolean alreadyScanning = false;
+        JSONObject completedJson = null;
 
         try {
-            String statusResponseStr = apiClient.pollStatus(jobId);
-            JSONObject statusJson = new JSONObject(statusResponseStr);
-            String currentStatus = statusJson.getString("status");
+            String statusResponseStr = apiClient.pollStatus(jobId).trim();
+            String currentStatus;
+
+            // Safely handle both JSON responses and plain string responses
+            if (statusResponseStr.startsWith("{")) {
+                JSONObject statusJson = new JSONObject(statusResponseStr);
+                currentStatus = statusJson.optString("status", "UNKNOWN");
+                completedJson = statusJson;
+            } else {
+                currentStatus = statusResponseStr.replace("\"", "").trim();
+            }
 
             if ("COMPLETED".equalsIgnoreCase(currentStatus) ||
                     "FAILED".equalsIgnoreCase(currentStatus) ||
                     "ABORTED".equalsIgnoreCase(currentStatus)) {
                 Log.d(TAG, "Job already finished while app was disconnected");
-                processServerResponse(statusJson, callback, cancelled, originalStartTime);
+                JSONObject responseObj = (completedJson != null)
+                        ? completedJson
+                        : new JSONObject().put("status", currentStatus);
+                processServerResponse(responseObj, callback, cancelled, originalStartTime);
                 return;
             } else if ("IN_PROGRESS".equalsIgnoreCase(currentStatus)) {
                 alreadyScanning = true;
             }
         } catch (Exception e) {
-            Log.w(TAG, "Initial status check failed, proceeding to WebSocket connection...");
+            Log.w(TAG, "Initial status check failed," +
+                    " proceeding to WebSocket connection: " + e.getMessage());
+        }
+
+        // Preserve timer if analysis was already in progress
+        long effectiveStartTime = 0;
+        if (alreadyScanning) {
+            effectiveStartTime = (originalStartTime > 0) ?
+                    originalStartTime : System.currentTimeMillis();
+        } else if (originalStartTime > 0) {
+            effectiveStartTime = originalStartTime;
         }
 
         AtomicBoolean serverResponded = new AtomicBoolean(false);
-        AtomicLong realScanningStartTime = new AtomicLong(alreadyScanning ? originalStartTime : 0);
+        AtomicLong realScanningStartTime = new AtomicLong(effectiveStartTime);
 
         executor.execute(() -> {
             while (!serverResponded.get() && !cancelled.get()) {
@@ -188,14 +209,12 @@ public class AnalysisProxy {
 
         webSocketClient.newWebSocket(request, new WebSocketListener() {
             @Override
-            public void onOpen(@NonNull WebSocket webSocket,
-                               @NonNull Response response) {
+            public void onOpen(@NonNull WebSocket webSocket, @NonNull Response response) {
                 Log.d(TAG, "WebSocket connected for job ID: " + jobId);
             }
 
             @Override
-            public void onMessage(@NonNull WebSocket webSocket,
-                                  @NonNull String text) {
+            public void onMessage(@NonNull WebSocket webSocket, @NonNull String text) {
                 Log.d(TAG, "WebSocket received payload: " + text);
 
                 try {
@@ -203,7 +222,9 @@ public class AnalysisProxy {
                     String status = json.optString("status");
 
                     if ("IN_PROGRESS".equalsIgnoreCase(status)) {
-                        realScanningStartTime.set(System.currentTimeMillis());
+                        if (realScanningStartTime.get() == 0) {
+                            realScanningStartTime.set(System.currentTimeMillis());
+                        }
                         postProgress(callback, cancelled, text);
                     } else {
                         serverResponded.set(true);
@@ -237,13 +258,129 @@ public class AnalysisProxy {
             }
 
             @Override
-            public void onClosed(@NonNull WebSocket webSocket,
-                                 int code,
-                                 @NonNull String reason) {
+            public void onClosed(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
                 serverResponded.set(true);
             }
         });
     }
+
+//    private void startWebSocketListening(String jobId, long originalStartTime,
+//                                         AnalysisCallback callback, AtomicBoolean cancelled) {
+//        boolean alreadyScanning = false;
+//
+//        try {
+//            String statusResponseStr = apiClient.pollStatus(jobId);
+//            JSONObject statusJson = new JSONObject(statusResponseStr);
+//            String currentStatus = statusJson.getString("status");
+//
+//            if ("COMPLETED".equalsIgnoreCase(currentStatus) ||
+//                    "FAILED".equalsIgnoreCase(currentStatus) ||
+//                    "ABORTED".equalsIgnoreCase(currentStatus)) {
+//                Log.d(TAG, "Job already finished while app was disconnected");
+//                processServerResponse(statusJson, callback, cancelled, originalStartTime);
+//                return;
+//            } else if ("IN_PROGRESS".equalsIgnoreCase(currentStatus)) {
+//                alreadyScanning = true;
+//            }
+//        } catch (Exception e) {
+//            Log.w(TAG, "Initial status check failed, proceeding to WebSocket connection...");
+//        }
+//
+//        AtomicBoolean serverResponded = new AtomicBoolean(false);
+//        AtomicLong realScanningStartTime = new AtomicLong(alreadyScanning ? originalStartTime : 0);
+//
+//        executor.execute(() -> {
+//            while (!serverResponded.get() && !cancelled.get()) {
+//                long start = realScanningStartTime.get();
+//
+//                if (start > 0) {
+//                    long elapsedMillis = System.currentTimeMillis() - start;
+//                    long seconds = (elapsedMillis / 1_000) % 60;
+//                    long minutes = (elapsedMillis / (1_000 * 60)) % 60;
+//                    String timeFormatted = String.format(
+//                            Locale.US, "%02d:%02d",
+//                            minutes, seconds
+//                    );
+//
+//                    postProgress(callback,
+//                            cancelled,
+//                            context.getString(R.string.status_analyzing_time, timeFormatted)
+//                    );
+//                } else {
+//                    postProgress(callback, cancelled, context.getString(R.string.status_waiting));
+//                }
+//
+//                try {
+//                    Thread.sleep(1_000);
+//                } catch (InterruptedException e) {
+//                    Thread.currentThread().interrupt();
+//                    break;
+//                }
+//            }
+//        });
+//
+//        Request request = new Request.Builder()
+//                .url(WS_BASE_URL + jobId)
+//                .build();
+//
+//        webSocketClient.newWebSocket(request, new WebSocketListener() {
+//            @Override
+//            public void onOpen(@NonNull WebSocket webSocket,
+//                               @NonNull Response response) {
+//                Log.d(TAG, "WebSocket connected for job ID: " + jobId);
+//            }
+//
+//            @Override
+//            public void onMessage(@NonNull WebSocket webSocket,
+//                                  @NonNull String text) {
+//                Log.d(TAG, "WebSocket received payload: " + text);
+//
+//                try {
+//                    JSONObject json = new JSONObject(text);
+//                    String status = json.optString("status");
+//
+//                    if ("IN_PROGRESS".equalsIgnoreCase(status)) {
+//                        realScanningStartTime.set(System.currentTimeMillis());
+//                        postProgress(callback, cancelled, text);
+//                    } else {
+//                        serverResponded.set(true);
+//                        processServerResponse(
+//                                json,
+//                                callback,
+//                                cancelled,
+//                                realScanningStartTime.get() > 0 ?
+//                                        realScanningStartTime.get() : originalStartTime);
+//                        webSocket.close(1_000, "Received final report");
+//                    }
+//                } catch (Exception e) {
+//                    postError(callback, cancelled, "Failed to parse server response");
+//                }
+//            }
+//
+//            @Override
+//            public void onFailure(@NonNull WebSocket webSocket,
+//                                  @NonNull Throwable t,
+//                                  Response response) {
+//                Log.w(TAG, "WebSocket dropped, attempting to reconnect", t);
+//
+//                serverResponded.set(true);
+//
+//                if (cancelled.get())
+//                    return;
+//
+//                long timeToPass = realScanningStartTime.get() > 0 ?
+//                        realScanningStartTime.get() : originalStartTime;
+//                startWebSocketListening(jobId, timeToPass, callback, cancelled);
+//            }
+//
+//            @Override
+//            public void onClosed(@NonNull WebSocket webSocket,
+//                                 int code,
+//                                 @NonNull String reason) {
+//                serverResponded.set(true);
+//            }
+//        });
+//    }
 
     private void processServerResponse(JSONObject json, AnalysisCallback callback,
                                        AtomicBoolean cancelled, long startTime) {

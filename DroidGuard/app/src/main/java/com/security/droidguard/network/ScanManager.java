@@ -1,6 +1,7 @@
 package com.security.droidguard.network;
 
 import android.content.Context;
+import android.content.Intent;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -9,6 +10,8 @@ import com.security.droidguard.R;
 import com.security.droidguard.database.AppDatabase;
 import com.security.droidguard.database.LocalScanRecord;
 import com.security.droidguard.models.ScanJob;
+import com.security.droidguard.ui.activity.ProgressActivity;
+import com.security.droidguard.utils.NotificationHelper;
 
 import org.json.JSONObject;
 
@@ -72,57 +75,65 @@ public class ScanManager {
 
                         AnalysisHandle handle = analysisProxy.resumePolling(
                                 record.jobId, record.scanTimestamp, new AnalysisCallback() {
-                            @Override
-                            public void onProgress(String status) {
-                                // Guard against trailing progress updates after completion
-                                if (recoveringJob.isComplete()) return;
+                                    @Override
+                                    public void onProgress(String status) {
+                                        // Guard against trailing progress updates after completion
+                                        if (recoveringJob.isComplete()) return;
 
-                                recoveringJob.setStatusLog(status);
-                                activeScansLiveData.postValue(new ArrayList<>(currentScans));
-                            }
-
-                            @Override
-                            public void onSuccess(String jsonReport) {
-                                activeHandles.remove(record.appName);
-                                recoveringJob.setStatusResId(R.string.status_completed_report);
-                                recoveringJob.setComplete(true);
-                                recoveringJob.setJsonReport(jsonReport);
-                                activeScansLiveData.postValue(new ArrayList<>(currentScans));
-
-                                dbExecutor.execute(() -> {
-                                    String finalVerdict = "safe";
-
-                                    try {
-                                        JSONObject json = new JSONObject(jsonReport);
-
-                                        if (json.has("verdict"))
-                                            finalVerdict = json.getString("verdict");
-                                    } catch (Exception e) {
-                                        System.out.println(e.getMessage());
+                                        recoveringJob.setStatusLog(status);
+                                        activeScansLiveData.postValue(new ArrayList<>(currentScans));
                                     }
 
-                                    database.scanHistoryDao().deleteByAppName(record.appName);
-                                    LocalScanRecord newRecord = new LocalScanRecord(
-                                            record.appName,
-                                            "com.security.droidguard",
-                                            jsonReport,
-                                            finalVerdict,
-                                            System.currentTimeMillis()
-                                    );
-                                    database.scanHistoryDao().insert(newRecord);
+                                    @Override
+                                    public void onSuccess(String jsonReport) {
+                                        activeHandles.remove(record.appName);
+                                        recoveringJob.setStatusResId(R.string.status_completed_report);
+                                        recoveringJob.setComplete(true);
+                                        recoveringJob.setJsonReport(jsonReport);
+                                        activeScansLiveData.postValue(new ArrayList<>(currentScans));
+
+                                        dbExecutor.execute(() -> {
+                                            String finalVerdict = "safe";
+
+                                            try {
+                                                JSONObject json = new JSONObject(jsonReport);
+
+                                                if (json.has("verdict"))
+                                                    finalVerdict = json.getString("verdict");
+                                            } catch (Exception e) {
+                                                System.out.println(e.getMessage());
+                                            }
+
+                                            database.scanHistoryDao().deleteByAppName(record.appName);
+                                            LocalScanRecord newRecord = new LocalScanRecord(
+                                                    record.appName,
+                                                    "com.security.droidguard",
+                                                    jsonReport,
+                                                    finalVerdict,
+                                                    System.currentTimeMillis()
+                                            );
+                                            database.scanHistoryDao().insert(newRecord);
+                                            if (!ProgressActivity.isVisible) {
+                                                NotificationHelper.showScanCompleteNotification(
+                                                        appContext,
+                                                        record.appName,
+                                                        finalVerdict,
+                                                        jsonReport
+                                                );
+                                            }
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onError(String error) {
+                                        activeHandles.remove(record.appName);
+                                        recoveringJob.setStatusResId(R.string.status_failed, error);
+                                        recoveringJob.setComplete(true);
+                                        activeScansLiveData.postValue(new ArrayList<>(currentScans));
+
+                                        cleanupFailedScan(record.appName);
+                                    }
                                 });
-                            }
-
-                            @Override
-                            public void onError(String error) {
-                                activeHandles.remove(record.appName);
-                                recoveringJob.setStatusResId(R.string.status_failed, error);
-                                recoveringJob.setComplete(true);
-                                activeScansLiveData.postValue(new ArrayList<>(currentScans));
-
-                                cleanupFailedScan(record.appName);
-                            }
-                        });
                         activeHandles.put(record.appName, handle);
                     } else {
                         ScanJob cachedJob = new ScanJob(record.appName, R.string.status_completed_report);
@@ -151,6 +162,11 @@ public class ScanManager {
         newJob.setApkPath(apkPath);
         currentScans.add(newJob);
         activeScansLiveData.setValue(new ArrayList<>(currentScans));
+
+        Intent serviceIntent = new Intent(appContext, ScanForegroundService.class);
+        serviceIntent.setAction(ScanForegroundService.ACTION_START_SERVICE);
+        serviceIntent.putExtra(ScanForegroundService.EXTRA_APP_NAME, appName);
+        appContext.startForegroundService(serviceIntent);
 
         AnalysisHandle handle = analysisProxy.startAnalysis(
                 apkPath, appName, new AnalysisCallback() {
@@ -197,6 +213,8 @@ public class ScanManager {
                     @Override
                     public void onSuccess(String jsonReport) {
                         activeHandles.remove(appName);
+                        stopForegroundService();
+
                         newJob.setStatusResId(R.string.status_completed_report);
                         newJob.setComplete(true);
                         newJob.setJsonReport(jsonReport);
@@ -223,12 +241,22 @@ public class ScanManager {
                                     System.currentTimeMillis()
                             );
                             database.scanHistoryDao().insert(record);
+                            if (!ProgressActivity.isVisible) {
+                                NotificationHelper.showScanCompleteNotification(
+                                        appContext,
+                                        appName,
+                                        verdict,
+                                        jsonReport
+                                );
+                            }
                         });
                     }
 
                     @Override
                     public void onError(String error) {
                         activeHandles.remove(appName);
+                        stopForegroundService();
+
                         newJob.setStatusResId(R.string.status_failed, error);
                         newJob.setComplete(true);
                         activeScansLiveData.postValue(new ArrayList<>(currentScans));
@@ -242,8 +270,6 @@ public class ScanManager {
 
     public void syncActiveScans() {
         networkExecutor.execute(() -> {
-            boolean listChanged = false;
-
             for (ScanJob job : currentScans) {
                 if (job.isComplete())
                     continue;
@@ -264,7 +290,7 @@ public class ScanManager {
                             job.setJsonReport(jsonReport);
 
                             activeHandles.remove(job.getAppName());
-                            listChanged = true;
+                            stopForegroundService();
 
                             dbExecutor.execute(() -> {
                                 String verdict = "safe";
@@ -286,13 +312,21 @@ public class ScanManager {
                                         System.currentTimeMillis()
                                 );
                                 database.scanHistoryDao().insert(newRecord);
+                                if (!ProgressActivity.isVisible) {
+                                    NotificationHelper.showScanCompleteNotification(
+                                            appContext,
+                                            job.getAppName(),
+                                            verdict,
+                                            jsonReport
+                                    );
+                                }
                             });
 
                         } else if ("FAILED".equals(status) || "ABORTED".equals(status)) {
                             job.setStatusResId(R.string.status_failed, "Server error");
                             job.setComplete(true);
                             activeHandles.remove(job.getAppName());
-                            listChanged = true;
+                            stopForegroundService();
 
                             cleanupFailedScan(job.getAppName());
                         }
@@ -303,9 +337,7 @@ public class ScanManager {
                 }
             }
 
-            if (listChanged) {
-                activeScansLiveData.postValue(new ArrayList<>(currentScans));
-            }
+            activeScansLiveData.postValue(new ArrayList<>(currentScans));
         });
     }
 
@@ -334,6 +366,7 @@ public class ScanManager {
             }
 
             activeHandles.remove(appName);
+            stopForegroundService();
         }
 
         for (int i = 0; i < currentScans.size(); i++) {
@@ -343,9 +376,8 @@ public class ScanManager {
                 currentScans.remove(i);
                 activeScansLiveData.postValue(new ArrayList<>(currentScans));
 
-                dbExecutor.execute(() -> {
-                    database.scanHistoryDao().deleteByAppName(appName);
-                });
+                dbExecutor.execute(() ->
+                        database.scanHistoryDao().deleteByAppName(appName));
                 break;
             }
         }
@@ -369,8 +401,15 @@ public class ScanManager {
         }
 
         activeScansLiveData.setValue(new ArrayList<>(currentScans));
-        dbExecutor.execute(() -> {
-            AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete);
-        });
+        dbExecutor.execute(() ->
+                AppDatabase.getDatabase(context).scanHistoryDao().deleteByAppName(appNameToDelete));
+    }
+
+    private void stopForegroundService() {
+        if (appContext != null) {
+            Intent serviceIntent = new Intent(appContext, ScanForegroundService.class);
+            serviceIntent.setAction(ScanForegroundService.ACTION_STOP_SERVICE);
+            appContext.startService(serviceIntent);
+        }
     }
 }

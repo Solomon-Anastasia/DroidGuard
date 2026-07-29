@@ -114,4 +114,10 @@
     <string name="show_all_apps">All</string>
 
     <string name="try_again">APK path unavailable. Select new app</string>
+    <string name="scan_completed_no_threats_detected">Scan completed. No threats detected.</string>
+    <string name="attention_suspicious_behaviors_detected">Attention: Suspicious behaviors detected!</string>
+    <string name="analysis_finished">"Analysis finished for "</string>
+    <string name="active_scans_notification">Active scans</string>
+    <string name="scanning_notification">"Active apps: "</string>
+    <string name="multiple_apps_notification">multiple apps</string>
 </resources>

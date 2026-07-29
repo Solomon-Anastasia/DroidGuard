@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProgressActivity extends AppCompatActivity {
+    public static boolean isVisible = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -137,6 +138,13 @@ public class ProgressActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        isVisible = true;
         ScanManager.getInstance().syncActiveScans();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        isVisible = false;
     }
 }

@@ -70,21 +70,18 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
         }
 
         scanJobs.sort((a, b) -> {
-            // Priority sort
-            boolean aIsActive = a.getStartTime() > 0;
-            boolean bIsActive = b.getStartTime() > 0;
+            boolean aIsActive = !a.isComplete() && a.getStartTime() > 0;
+            boolean bIsActive = !b.isComplete() && b.getStartTime() > 0;
 
             if (aIsActive && !bIsActive) {
-                return -1;
+                return -1; // Move actively scanning job to the top
             } else if (!aIsActive && bIsActive) {
                 return 1;
             }
 
-            // Secondary sort
-            if (a.getAppName() == null)
-                return 1;
-            if (b.getAppName() == null)
-                return -1;
+            // Sort completed or waiting apps alphabetically
+            if (a.getAppName() == null) return 1;
+            if (b.getAppName() == null) return -1;
 
             return a.getAppName().compareToIgnoreCase(b.getAppName());
         });
