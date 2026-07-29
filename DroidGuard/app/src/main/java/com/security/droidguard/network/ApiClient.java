@@ -1,17 +1,11 @@
 package com.security.droidguard.network;
 
 import android.os.Build;
-import android.util.Log;
-
-import androidx.annotation.NonNull;
 
 import com.security.droidguard.BuildConfig;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -31,8 +25,6 @@ public class ApiClient {
     private static final int TIMEOUT_MS = 15_000;
 
     private final OkHttpClient httpClient = new OkHttpClient();
-
-    private static final String TAG = "ApiClient";
 
     // GET /api/check?hash={sha256}
     public String checkHash(String sha256) throws Exception {

@@ -47,7 +47,9 @@ public class ScanJob {
 
         // Report comes from gateway in json file, not all can be translated
         if (rawStatusLog != null) {
-            int resId = context.getResources().getIdentifier(rawStatusLog, "string", context.getPackageName());
+            int resId = context.getResources().getIdentifier(
+                    rawStatusLog, "string", context.getPackageName()
+            );
             if (resId != 0) {
                 return context.getString(resId);
             }

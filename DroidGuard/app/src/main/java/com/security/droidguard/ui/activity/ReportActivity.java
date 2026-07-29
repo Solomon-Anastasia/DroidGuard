@@ -234,7 +234,7 @@ public class ReportActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             textReasoning.setText(getString(R.string.failed_parse, jsonString));
         }
     }
