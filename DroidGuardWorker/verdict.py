@@ -38,7 +38,7 @@ CORROBORATION_MULTIPLIER = 1.5
 TRIPLE_CHANNEL_BONUS = 1.1
 
 # How much non-primary behaviours contribute on top of the strongest one
-SECONDARY_WEIGHT = 0.15
+SECONDARY_WEIGHT = 0.05
 
 # Packing/obfuscation is never malicious alone, it only sharpens a verdict that
 # already has a real malicious behaviour behind it
@@ -56,15 +56,22 @@ B_INTEGRITY = "integrity_anomaly"
 B_EVASION = "evasion"
 
 # Behaviours that indicate malice and may get a malicious verdict
-STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_EXFIL, B_SIGNATURE}
-CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY, B_DYNAMIC}
+STRONG_BEHAVIORS = {B_SMS, B_OVERLAY, B_SIGNATURE}
+CONTEXT_BEHAVIORS = {B_FINGERPRINT, B_PERSIST, B_INTEGRITY, B_DYNAMIC, B_EXFIL}
 
 
-def _is_context(behavior: str, interception_present: bool) -> bool:
+def _is_context(behavior: str, interception_present: bool = False, signature_present: bool = False) -> bool:
     if behavior in CONTEXT_BEHAVIORS:
         return True
+
+    # SMS is context unless we see interception markers
     if behavior == B_SMS and not interception_present:
         return True
+
+    # Exfiltration is context unless a malicious signature confirms bad intent
+    if behavior == B_EXFIL and not signature_present:
+        return True
+
     return False
 
 
@@ -132,8 +139,6 @@ def _api_behavior(name: str):
         "Programmatic SMS sending": B_SMS,
         "Device identifier access": B_FINGERPRINT,
         "Installed-app enumeration": B_FINGERPRINT,
-        "Reflection": B_EVASION,
-        "Base64 decoding": B_EVASION,
     }
 
     return mapping.get(name)
@@ -161,7 +166,7 @@ def _indicators_from_finding(finding: dict) -> list:
             elif "PHONE_STATE" in action:
                 behaviors.add(B_FINGERPRINT)
 
-        for behavior in (behaviors or {B_INTEGRITY}):
+        for behavior in behaviors:
             out.append(_indicator(behavior, CH_STRUCTURE, CHANNEL_WEIGHTS[CH_STRUCTURE], name))
 
     elif ftype == "certificate_anomaly":
@@ -230,6 +235,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
     # Create key if not exists
     behavior_channels = defaultdict(dict)
     evasion_present = False
+    signature_present = False
 
     for ind in indicators:
         behavior = ind["behavior"]
@@ -237,6 +243,9 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         if behavior == B_EVASION:
             evasion_present = True
             continue
+
+        if behavior == B_SIGNATURE:
+            signature_present = True
 
         channel, weight = ind["channel"], ind["weight"]
 
@@ -255,8 +264,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         if n >= 3:
             raw *= TRIPLE_CHANNEL_BONUS
 
-        # Cap behaviours that lack evidence
-        cap = CONTEXT_CAP if _is_context(behavior, interception_present) else 1.0
+        cap = CONTEXT_CAP if _is_context(behavior, interception_present, signature_present) else 1.0
         behavior_scores[behavior] = min(raw, cap)
         channel_counts[behavior] = n
 
@@ -283,7 +291,7 @@ def _score_indicators(indicators: list, interception_present: bool = False):
         s for b, s in behavior_scores.items()
         if channel_counts[b] >= 2
            and b in STRONG_BEHAVIORS
-           and not _is_context(b, interception_present)
+           and not _is_context(b, interception_present, signature_present)
     ]
 
     if corroborated_strong:

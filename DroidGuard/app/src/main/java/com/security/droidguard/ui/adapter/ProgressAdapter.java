@@ -29,7 +29,6 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
 
     public void updateData(List<ScanJob> newJobs) {
         this.scanJobsFull = new ArrayList<>(newJobs);
-//        filter(currentQuery);
         applyFilters();
     }
 
@@ -58,7 +57,8 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                             org.json.JSONObject json = new org.json.JSONObject(job.getJsonReport());
                             jobVerdict = json.optString("verdict", "clean");
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
 
                     matchesVerdict = jobVerdict.equalsIgnoreCase(currentVerdictFilter);
                 }
@@ -68,23 +68,27 @@ public class ProgressAdapter extends RecyclerView.Adapter<ProgressAdapter.Progre
                 scanJobs.add(job);
             }
         }
-        notifyDataSetChanged();
-    }
 
-    public void filter(String query) {
-        this.currentQuery = (query != null) ? query : "";
-        scanJobs.clear();
+        scanJobs.sort((a, b) -> {
+            // Priority sort
+            boolean aIsActive = a.getStartTime() > 0;
+            boolean bIsActive = b.getStartTime() > 0;
 
-        if (currentQuery.trim().isEmpty()) {
-            scanJobs.addAll(scanJobsFull);
-        } else {
-            String filterPattern = currentQuery.toLowerCase().trim();
-            for (ScanJob job : scanJobsFull) {
-                if (job.getAppName() != null && job.getAppName().toLowerCase().contains(filterPattern)) {
-                    scanJobs.add(job);
-                }
+            if (aIsActive && !bIsActive) {
+                return -1;
+            } else if (!aIsActive && bIsActive) {
+                return 1;
             }
-        }
+
+            // Secondary sort
+            if (a.getAppName() == null)
+                return 1;
+            if (b.getAppName() == null)
+                return -1;
+
+            return a.getAppName().compareToIgnoreCase(b.getAppName());
+        });
+
         notifyDataSetChanged();
     }
 

@@ -17,14 +17,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewHolder> {
-
     private List<InstalledApp> appList;
     private final List<InstalledApp> originalAppList;
     private final OnAppClickListener listener;
 
     public AppListAdapter(List<InstalledApp> appList, OnAppClickListener listener) {
-        this.appList = appList;
-        this.originalAppList = new ArrayList<>(appList);
+        if (appList != null) {
+            appList.sort((a, b) ->
+                    a.getAppName().compareToIgnoreCase(b.getAppName()));
+        }
+
+        this.appList = appList != null ? appList : new ArrayList<>();
+        this.originalAppList = new ArrayList<>(this.appList);
         this.listener = listener;
     }
 
@@ -41,6 +45,9 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
                 }
             }
         }
+
+        filteredList.sort((a, b) ->
+                a.getAppName().compareToIgnoreCase(b.getAppName()));
 
         this.appList = filteredList;
         notifyDataSetChanged();

@@ -74,19 +74,24 @@ public class ProgressActivity extends AppCompatActivity {
         }
 
         chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds.isEmpty()) return;
+            if (checkedIds.isEmpty())
+                return;
 
             int checkedId = checkedIds.get(0);
             String verdictFilter = "all";
 
-            if (checkedId == R.id.chipFilterSafe) verdictFilter = "clean";
-            else if (checkedId == R.id.chipFilterSuspicious) verdictFilter = "malicious";
+            if (checkedId == R.id.chipFilterSafe)
+                verdictFilter = "clean";
+            else if (checkedId == R.id.chipFilterSuspicious)
+                verdictFilter = "malicious";
 
             activeAdapter.setFilter(null, verdictFilter);
             completedAdapter.setFilter(null, verdictFilter);
 
-            titleActive.setVisibility(verdictFilter.equals("all") &&
-                    activeAdapter.getItemCount() > 0 ? View.VISIBLE : View.GONE);
+            titleActive.setVisibility(activeAdapter.getItemCount() > 0 ?
+                    View.VISIBLE : View.GONE);
+            titleCompleted.setVisibility(completedAdapter.getItemCount() > 0 ?
+                    View.VISIBLE : View.GONE);
         });
 
         TextInputEditText searchInput = findViewById(R.id.searchProgressInput);
@@ -122,8 +127,10 @@ public class ProgressActivity extends AppCompatActivity {
             activeAdapter.updateData(activeJobs);
             completedAdapter.updateData(completedJobs);
 
-            titleActive.setVisibility(activeJobs.isEmpty() ? View.GONE : View.VISIBLE);
-            titleCompleted.setVisibility(completedJobs.isEmpty() ? View.GONE : View.VISIBLE);
+            titleActive.setVisibility(activeAdapter.getItemCount() == 0 ?
+                    View.GONE : View.VISIBLE);
+            titleCompleted.setVisibility(completedAdapter.getItemCount() == 0 ?
+                    View.GONE : View.VISIBLE);
         });
     }
 

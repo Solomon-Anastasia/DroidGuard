@@ -103,24 +103,7 @@ SUSPICIOUS_API_CATEGORIES = [
             (r"Landroid/content/pm/PackageManager;", r"getInstalledPackages"),
             (r"Landroid/content/pm/PackageManager;", r"getInstalledApplications"),
         ],
-    },
-    # Last 2 is evasion behaviour
-    {
-        "name": "Reflection",
-        "detail": "Invokes methods reflectively (evasion technique. Also common in libraries)",
-        "severity": "low",
-        "apis": [
-            (r"Ljava/lang/reflect/Method;", r"invoke"),
-        ],
-    },
-    {
-        "name": "Base64 decoding",
-        "detail": "Decodes Base64 payloads (frequently paired with obfuscated strings)",
-        "severity": "low",
-        "apis": [
-            (r"Landroid/util/Base64;", r"decode"),
-        ],
-    },
+    }
 ]
 
 # URL analysis
